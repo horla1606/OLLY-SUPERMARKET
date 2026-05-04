@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     if (error) throw error;
     if (!order) return Response.json({ message: 'Order not found' }, { status: 404 });
-    if (!isManager && (order as { customer_id: string }).customer_id !== user!.id) {
+    if (!isManager && (order as unknown as { customer_id: string }).customer_id !== user!.id) {
       return Response.json({ message: 'Access denied' }, { status: 403 });
     }
 
