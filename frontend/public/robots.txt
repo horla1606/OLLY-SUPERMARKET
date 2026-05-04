@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /shop
+Disallow: /dashboard/
+Disallow: /checkout
+Disallow: /cart
+Disallow: /support
+
+Sitemap: https://olly-supermarket.vercel.app/sitemap.xml
