@@ -248,7 +248,7 @@ function ProductsTab() {
   const load = () => {
     setLoading(true);
     // Get all products including out-of-stock ones for admin view
-    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000'}/api/products?sort=name`, {
+    fetch('/api/products?sort=name', {
       headers: { Authorization: `Bearer ${localStorage.getItem('olly_auth_token')}` },
     })
       .then((r) => r.json())
@@ -713,7 +713,7 @@ function InventoryTab() {
   const [msg, setMsg]           = useState<{ id: string; ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000'}/api/products?sort=name`, {
+    fetch('/api/products?sort=name', {
       headers: { Authorization: `Bearer ${localStorage.getItem('olly_auth_token')}` },
     })
       .then((r) => r.json())

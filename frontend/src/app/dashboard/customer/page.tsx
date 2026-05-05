@@ -13,7 +13,7 @@ const STATUS_STEPS = ['pending', 'confirmed', 'ready', 'completed'];
 
 export default function CustomerDashboardPage() {
   const router    = useRouter();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, loading: authLoading } = useAuth();
   const [tab, setTab]         = useState<Tab>('orders');
   const [orders, setOrders]   = useState<Order[]>([]);
   const [cart, setCart]       = useState<Cart | null>(null);
@@ -24,12 +24,13 @@ export default function CustomerDashboardPage() {
   const [feedback, setFeedback]     = useState('');
 
   useEffect(() => {
+    if (authLoading) return;
     if (!isAuthenticated) {
       router.replace('/login');
       return;
     }
     loadTab(tab);
-  }, [tab, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tab, isAuthenticated, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadTab(t: Tab) {
     setLoading(true);
@@ -44,6 +45,8 @@ export default function CustomerDashboardPage() {
         const { data } = await messagesApi.getMyMessages();
         setMessages(data as Message[]);
       }
+    } catch {
+      // keep existing data on error
     } finally {
       setLoading(false);
     }

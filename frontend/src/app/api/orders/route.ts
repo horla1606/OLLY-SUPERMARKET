@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    // Auto-assign on-duty staff (fire-and-forget)
+    // Auto-assign on-duty staff + record analytics (fire-and-forget)
     const orderId = (order as { id: string }).id;
     void (async () => {
       try {
@@ -123,12 +123,21 @@ export async function POST(req: NextRequest) {
           .select('staff_id')
           .eq('date', today)
           .limit(1);
-        if (duties?.length) {
+        const staffId = duties?.[0]?.staff_id ?? null;
+        if (staffId) {
           await supabase
             .from('orders')
-            .update({ assigned_staff_id: duties[0].staff_id })
+            .update({ assigned_staff_id: staffId })
             .eq('id', orderId);
         }
+        const analyticsRows = orderItems.map((item) => ({
+          product_id: item.product_id,
+          date: today,
+          sales_count: item.quantity,
+          revenue: Math.round(item.price * item.quantity * 100) / 100,
+          staff_id: staffId,
+        }));
+        if (analyticsRows.length) await supabase.from('analytics').insert(analyticsRows);
       } catch { /* best-effort */ }
     })();
 

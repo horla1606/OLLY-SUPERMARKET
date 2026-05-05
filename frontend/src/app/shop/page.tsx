@@ -275,9 +275,6 @@ function ProductCard({ product, isAdding, inCart, onAdd }: CardProps) {
         <h3 className="font-semibold text-gray-800 text-sm leading-tight line-clamp-2 flex-1">
           {product.name}
         </h3>
-        {product.expiry_date && (
-          <p className="text-xs text-amber-600 mt-1">Exp: {product.expiry_date}</p>
-        )}
         <p className="text-xs text-gray-400 mt-1">
           {isOutOfStock ? (
             <span className="text-red-500">Out of stock</span>
