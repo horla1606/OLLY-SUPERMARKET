@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 
 const features = [
   {
@@ -14,7 +17,7 @@ const features = [
   {
     icon: '💚',
     title: 'Always Fresh',
-    desc: 'We source fresh produce daily and display expiry dates on every product.',
+    desc: 'We source fresh produce daily so every product on the shelf is at its best.',
   },
   {
     icon: '📱',
@@ -25,7 +28,20 @@ const features = [
 
 const categories = ['Fresh Produce', 'Dairy & Eggs', 'Bakery', 'Beverages', 'Snacks', 'Household'];
 
+function getGreeting(name: string): string {
+  const hour = new Date().getHours();
+  const salutation =
+    hour < 12 ? 'Good morning' :
+    hour < 17 ? 'Good afternoon' :
+    'Good evening';
+  return `${salutation}, ${name}!`;
+}
+
 export default function HomePage() {
+  const { user, isAuthenticated, isManager } = useAuth();
+
+  const dashboardHref = isManager ? '/dashboard/admin' : '/dashboard/customer';
+
   return (
     <div className="min-h-screen">
       {/* Navbar */}
@@ -38,12 +54,28 @@ export default function HomePage() {
             <Link href="/shop" className="text-white/80 hover:text-white text-sm transition-colors">
               Shop
             </Link>
-            <Link href="/login" className="btn-outline !border-white !text-white hover:!bg-white hover:!text-secondary text-sm px-3 py-1.5">
-              Login
-            </Link>
-            <Link href="/signup" className="btn-accent text-sm px-3 py-1.5">
-              Sign Up
-            </Link>
+            {isAuthenticated && user ? (
+              <>
+                <span className="text-white/70 text-sm hidden sm:block">
+                  {getGreeting(user.name ?? 'there')}
+                </span>
+                <Link
+                  href={dashboardHref}
+                  className="btn-accent text-sm px-3 py-1.5"
+                >
+                  My Account
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="btn-outline !border-white !text-white hover:!bg-white hover:!text-secondary text-sm px-3 py-1.5">
+                  Login
+                </Link>
+                <Link href="/signup" className="btn-accent text-sm px-3 py-1.5">
+                  Sign Up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -51,21 +83,44 @@ export default function HomePage() {
       {/* Hero */}
       <section className="bg-gradient-to-br from-secondary to-primary text-white py-24 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl font-extrabold mb-6 leading-tight">
-            Fresh Products,<br />
-            <span className="text-accent">Fast Pickup.</span>
-          </h1>
-          <p className="text-xl text-white/80 mb-10 max-w-2xl mx-auto">
-            Shop your favourite groceries online and pick them up at OLLY Supermarket — no queues, no fuss.
-          </p>
-          <div className="flex flex-wrap gap-4 justify-center">
-            <Link href="/shop" className="btn-accent text-base px-8 py-3">
-              Shop Now
-            </Link>
-            <Link href="/signup" className="btn-outline !border-white !text-white hover:!bg-white hover:!text-secondary text-base px-8 py-3">
-              Create Account
-            </Link>
-          </div>
+          {isAuthenticated && user ? (
+            <>
+              <p className="text-accent font-semibold text-lg mb-2">{getGreeting(user.name ?? 'there')}</p>
+              <h1 className="text-5xl font-extrabold mb-6 leading-tight">
+                Welcome back to<br />
+                <span className="text-accent">OLLY Supermarket</span>
+              </h1>
+              <p className="text-xl text-white/80 mb-10 max-w-2xl mx-auto">
+                Fresh groceries are waiting. Shop now and pick up at your convenience.
+              </p>
+              <div className="flex flex-wrap gap-4 justify-center">
+                <Link href="/shop" className="btn-accent text-base px-8 py-3">
+                  Shop Now
+                </Link>
+                <Link href={dashboardHref} className="btn-outline !border-white !text-white hover:!bg-white hover:!text-secondary text-base px-8 py-3">
+                  View My Orders
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <h1 className="text-5xl font-extrabold mb-6 leading-tight">
+                Fresh Products,<br />
+                <span className="text-accent">Fast Pickup.</span>
+              </h1>
+              <p className="text-xl text-white/80 mb-10 max-w-2xl mx-auto">
+                Shop your favourite groceries online and pick them up at OLLY Supermarket — no queues, no fuss.
+              </p>
+              <div className="flex flex-wrap gap-4 justify-center">
+                <Link href="/shop" className="btn-accent text-base px-8 py-3">
+                  Shop Now
+                </Link>
+                <Link href="/signup" className="btn-outline !border-white !text-white hover:!bg-white hover:!text-secondary text-base px-8 py-3">
+                  Create Account
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -103,11 +158,23 @@ export default function HomePage() {
 
       {/* CTA */}
       <section className="bg-primary py-16 px-4 text-center text-white">
-        <h2 className="text-3xl font-bold mb-4">Ready to shop smarter?</h2>
-        <p className="text-white/80 mb-8">Join thousands of happy OLLY customers today.</p>
-        <Link href="/signup" className="btn-accent text-base px-10 py-3">
-          Get Started — It&apos;s Free
-        </Link>
+        {isAuthenticated ? (
+          <>
+            <h2 className="text-3xl font-bold mb-4">Ready to restock?</h2>
+            <p className="text-white/80 mb-8">Your next order is just a few clicks away.</p>
+            <Link href="/shop" className="btn-accent text-base px-10 py-3">
+              Browse Products
+            </Link>
+          </>
+        ) : (
+          <>
+            <h2 className="text-3xl font-bold mb-4">Ready to shop smarter?</h2>
+            <p className="text-white/80 mb-8">Join thousands of happy OLLY customers today.</p>
+            <Link href="/signup" className="btn-accent text-base px-10 py-3">
+              Get Started — It&apos;s Free
+            </Link>
+          </>
+        )}
       </section>
 
       {/* Footer */}

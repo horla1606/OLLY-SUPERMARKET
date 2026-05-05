@@ -31,6 +31,7 @@ export default function ShopPage() {
 
   const [products, setProducts]   = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [guestCart, setGuestCart] = useState<CartItem[]>([]);
   const [category, setCategory]   = useState('All');
   const [sort, setSort]           = useState('name');
   const [search, setSearch]       = useState('');
@@ -39,6 +40,14 @@ export default function ShopPage() {
   const [addingId, setAddingId]   = useState<string | null>(null);
   const [toast, setToast]         = useState('');
   const toastTimer                = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load guest cart from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('olly_guest_cart');
+      if (stored) setGuestCart(JSON.parse(stored) as CartItem[]);
+    } catch { /* ignore */ }
+  }, []);
 
   // Debounce search input by 400ms
   useEffect(() => {
@@ -76,9 +85,21 @@ export default function ShopPage() {
     toastTimer.current = setTimeout(() => setToast(''), 2500);
   }
 
+  function addToGuestCart(product: Product) {
+    setGuestCart((prev) => {
+      const existing = prev.find((i) => i.product_id === product.id);
+      const updated = existing
+        ? prev.map((i) => i.product_id === product.id ? { ...i, quantity: i.quantity + 1 } : i)
+        : [...prev, { product_id: product.id, product_name: product.name, price: product.price, quantity: 1 }];
+      try { localStorage.setItem('olly_guest_cart', JSON.stringify(updated)); } catch { /* ignore */ }
+      return updated;
+    });
+    showToast(`${product.name} added! Sign up to complete your order.`);
+  }
+
   async function handleAddToCart(product: Product) {
     if (!isAuthenticated) {
-      router.push('/login');
+      addToGuestCart(product);
       return;
     }
     setAddingId(product.id);
@@ -95,7 +116,9 @@ export default function ShopPage() {
     }
   }
 
-  const cartCount = cartItems.reduce((s, i) => s + i.quantity, 0);
+  const cartCount = isAuthenticated
+    ? cartItems.reduce((s, i) => s + i.quantity, 0)
+    : guestCart.reduce((s, i) => s + i.quantity, 0);
 
   return (
     <div className="min-h-screen bg-neutral">

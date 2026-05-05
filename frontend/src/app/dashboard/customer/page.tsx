@@ -22,6 +22,7 @@ export default function CustomerDashboardPage() {
   const [msgType, setMsgType]       = useState('inquiry');
   const [loading, setLoading]       = useState(false);
   const [feedback, setFeedback]     = useState('');
+  const [ordersError, setOrdersError] = useState('');
 
   useEffect(() => {
     if (authLoading) return;
@@ -34,10 +35,11 @@ export default function CustomerDashboardPage() {
 
   async function loadTab(t: Tab) {
     setLoading(true);
+    setOrdersError('');
     try {
       if (t === 'orders') {
         const { data } = await ordersApi.getMyOrders();
-        setOrders(data as Order[]);
+        setOrders(Array.isArray(data) ? data as Order[] : []);
       } else if (t === 'cart') {
         const { data } = await cartApi.get();
         setCart(data as Cart);
@@ -46,7 +48,7 @@ export default function CustomerDashboardPage() {
         setMessages(data as Message[]);
       }
     } catch {
-      // keep existing data on error
+      if (t === 'orders') setOrdersError('Could not load orders. Tap Refresh to try again.');
     } finally {
       setLoading(false);
     }
@@ -110,12 +112,25 @@ export default function CustomerDashboardPage() {
         {/* Orders */}
         {!loading && tab === 'orders' && (
           <div className="space-y-4">
-            {orders.length === 0 ? (
+            <div className="flex justify-end">
+              <button
+                onClick={() => loadTab('orders')}
+                className="text-xs text-primary hover:underline"
+              >
+                ↻ Refresh
+              </button>
+            </div>
+            {ordersError && (
+              <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+                {ordersError}
+              </div>
+            )}
+            {!ordersError && orders.length === 0 ? (
               <div className="card text-center py-12 text-gray-400">
                 No orders yet.{' '}
                 <Link href="/shop" className="text-primary hover:underline">Start shopping</Link>
               </div>
-            ) : (
+            ) : !ordersError && (
               orders.map((order) => (
                 <div key={order.id} className="card">
                   <div className="flex items-start justify-between mb-4">

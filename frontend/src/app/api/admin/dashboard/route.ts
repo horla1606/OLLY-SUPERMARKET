@@ -15,11 +15,7 @@ export async function GET(req: NextRequest) {
       supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'customer'),
       supabase.from('orders').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo),
       supabase.from('orders').select('total_amount').gte('created_at', thirtyDaysAgo),
-      supabase
-        .from('orders')
-        .select('*, users(name, email, phone)')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: true }),
+      supabase.from('orders').select('*').eq('status', 'pending').order('created_at', { ascending: true }),
       supabase.from('products').select('id', { count: 'exact', head: true }).lt('stock', 10),
     ]);
 
@@ -28,13 +24,31 @@ export async function GET(req: NextRequest) {
     if (revenueRes.error) throw revenueRes.error;
     if (pendingRes.error) throw pendingRes.error;
 
+    // Manually attach user info to pending orders (avoids FK join dependency)
+    const pendingOrders = pendingRes.data ?? [];
+    const customerIds = [...new Set(pendingOrders.map((o) => (o as Record<string, string>).customer_id).filter(Boolean))];
+    let userMap: Record<string, { name: string; email: string; phone: string }> = {};
+    if (customerIds.length > 0) {
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, name, email, phone')
+        .in('id', customerIds);
+      if (users) {
+        userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+      }
+    }
+    const pendingWithUsers = pendingOrders.map((o) => ({
+      ...o,
+      users: userMap[(o as Record<string, string>).customer_id] ?? null,
+    }));
+
     const revenue30d = (revenueRes.data ?? []).reduce((sum, o) => sum + Number(o.total_amount), 0);
 
     return Response.json({
       customers: customersRes.count ?? 0,
       orders_30d: ordersCountRes.count ?? 0,
       revenue_30d: Math.round(revenue30d * 100) / 100,
-      pending_orders: pendingRes.data ?? [],
+      pending_orders: pendingWithUsers,
       low_stock: lowStockRes.count ?? 0,
     });
   } catch (err) {

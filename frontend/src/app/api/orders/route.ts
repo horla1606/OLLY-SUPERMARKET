@@ -14,16 +14,21 @@ export async function GET(req: NextRequest) {
 
   try {
     const isManager = user!.role === 'manager';
-    let query = supabase
-      .from('orders')
-      .select(isManager ? '*, users(name, email, phone)' : '*')
-      .order('created_at', { ascending: false });
-
+    let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
     if (!isManager) query = query.eq('customer_id', user!.id);
 
-    const { data, error } = await query;
+    const { data: orders, error } = await query;
     if (error) throw error;
-    return Response.json(data);
+
+    // Attach user info for managers without relying on FK joins
+    if (isManager && orders?.length) {
+      const ids = [...new Set(orders.map((o) => (o as Record<string, string>).customer_id).filter(Boolean))];
+      const { data: users } = await supabase.from('users').select('id, name, email, phone').in('id', ids);
+      const umap = Object.fromEntries((users ?? []).map((u) => [u.id, u]));
+      const enriched = orders.map((o) => ({ ...o, users: umap[(o as Record<string, string>).customer_id] ?? null }));
+      return Response.json(enriched);
+    }
+    return Response.json(orders);
   } catch (err) {
     console.error('get orders:', err);
     return Response.json({ message: 'Internal server error' }, { status: 500 });

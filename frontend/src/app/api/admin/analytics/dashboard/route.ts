@@ -29,20 +29,25 @@ export async function GET(req: NextRequest) {
       supabase.from('analytics').select('revenue, sales_count'),
       supabase.from('analytics').select('revenue, sales_count').gte('date', thisMonthStart),
       supabase.from('analytics').select('revenue, sales_count').gte('date', lastMonthStart).lte('date', lastMonthEnd),
-      supabase.from('analytics')
-        .select('product_id, revenue, sales_count, products:product_id(name, category)')
-        .gte('date', ago30)
-        .not('product_id', 'is', null),
+      supabase.from('analytics').select('product_id, revenue, sales_count').gte('date', ago30).not('product_id', 'is', null),
     ]);
 
     for (const r of [allRes, thisRes, lastRes, top30Res]) {
       if (r.error) throw r.error;
     }
 
+    // Fetch product names separately to avoid FK join dependency
+    const productIds = [...new Set((top30Res.data ?? []).map((r) => (r as Row).product_id as string).filter(Boolean))];
+    let productNameMap: Record<string, { name: string; category: string }> = {};
+    if (productIds.length > 0) {
+      const { data: products } = await supabase.from('products').select('id, name, category').in('id', productIds);
+      if (products) productNameMap = Object.fromEntries(products.map((p) => [p.id, { name: p.name, category: p.category }]));
+    }
+
     const pmap = new Map<string, { product_id: string; name: string; category: string; revenue: number; sales_count: number }>();
     for (const row of (top30Res.data ?? []) as Row[]) {
       const pid = row.product_id as string;
-      const prod = row.products as { name: string; category: string } | null;
+      const prod = productNameMap[pid] ?? null;
       if (!pmap.has(pid)) {
         pmap.set(pid, { product_id: pid, name: prod?.name ?? 'Unknown', category: prod?.category ?? '', revenue: 0, sales_count: 0 });
       }

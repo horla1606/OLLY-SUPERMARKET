@@ -528,7 +528,7 @@ function StaffContent() {
   }
 
   return (
-    <div className="flex flex-col gap-0 -mx-4 sm:-mx-6 -mt-6">
+    <div className="flex flex-col gap-0 -mx-4 sm:-mx-6">
       {/* Tab nav */}
       <nav className="bg-white border-b border-gray-200 overflow-x-auto">
         <div className="flex px-4 sm:px-6">
