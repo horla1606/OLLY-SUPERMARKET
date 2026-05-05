@@ -38,8 +38,22 @@ export default function CustomerDashboardPage() {
     setOrdersError('');
     try {
       if (t === 'orders') {
+        // Show locally cached orders immediately while API loads
+        try {
+          const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
+          if (cached.length > 0) setOrders(cached);
+        } catch { /* ignore */ }
+
         const { data } = await ordersApi.getMyOrders();
-        setOrders(Array.isArray(data) ? data as Order[] : []);
+        if (Array.isArray(data) && data.length > 0) {
+          // API returned real results — use them and update cache
+          setOrders(data as Order[]);
+          try { localStorage.setItem('olly_recent_orders', JSON.stringify(data)); } catch { /* ignore */ }
+        } else {
+          // API returned empty — keep showing cached orders (fallback)
+          const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
+          setOrders(cached);
+        }
       } else if (t === 'cart') {
         const { data } = await cartApi.get();
         setCart(data as Cart);
@@ -48,7 +62,16 @@ export default function CustomerDashboardPage() {
         setMessages(data as Message[]);
       }
     } catch {
-      if (t === 'orders') setOrdersError('Could not load orders. Tap Refresh to try again.');
+      if (t === 'orders') {
+        // Fall back to cached orders on network/API error
+        try {
+          const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
+          setOrders(cached);
+          if (cached.length === 0) setOrdersError('Could not load orders. Tap Refresh to try again.');
+        } catch {
+          setOrdersError('Could not load orders. Tap Refresh to try again.');
+        }
+      }
     } finally {
       setLoading(false);
     }

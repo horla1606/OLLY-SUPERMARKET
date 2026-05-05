@@ -69,7 +69,16 @@ function CheckoutContent() {
 
       // Clear cart after successful order
       await cartApi.clear().catch(() => {});
-      setConfirmedOrder(data as Order);
+      const placed = data as Order;
+
+      // Cache order in localStorage so dashboard shows it immediately
+      try {
+        const prev = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
+        const merged = [placed, ...prev.filter((o) => o.id !== placed.id)].slice(0, 20);
+        localStorage.setItem('olly_recent_orders', JSON.stringify(merged));
+      } catch { /* ignore */ }
+
+      setConfirmedOrder(placed);
     } catch (err: unknown) {
       setError(
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??

@@ -4,10 +4,15 @@ function makeClient() {
   try {
     return createClient(
       process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false, autoRefreshToken: false } }
     );
   } catch {
-    return createClient('https://placeholder.supabase.co', 'placeholder-key');
+    return createClient(
+      'https://placeholder.supabase.co',
+      'placeholder-key',
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
   }
 }
 
