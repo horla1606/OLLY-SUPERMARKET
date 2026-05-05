@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
     // Attach user info for managers without relying on FK joins
     if (isManager && orders?.length) {
-      const ids = [...new Set(orders.map((o) => (o as Record<string, string>).customer_id).filter(Boolean))];
+      const ids = Array.from(new Set(orders.map((o) => (o as Record<string, string>).customer_id).filter(Boolean)));
       const { data: users } = await supabase.from('users').select('id, name, email, phone').in('id', ids);
       const umap = Object.fromEntries((users ?? []).map((u) => [u.id, u]));
       const enriched = orders.map((o) => ({ ...o, users: umap[(o as Record<string, string>).customer_id] ?? null }));

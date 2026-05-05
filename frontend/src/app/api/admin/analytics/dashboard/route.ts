@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch product names separately to avoid FK join dependency
-    const productIds = [...new Set((top30Res.data ?? []).map((r) => (r as Row).product_id as string).filter(Boolean))];
+    const productIds = Array.from(new Set((top30Res.data ?? []).map((r) => (r as Row).product_id as string).filter(Boolean)));
     let productNameMap: Record<string, { name: string; category: string }> = {};
     if (productIds.length > 0) {
       const { data: products } = await supabase.from('products').select('id, name, category').in('id', productIds);

@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
     // Manually attach user info to pending orders (avoids FK join dependency)
     const pendingOrders = pendingRes.data ?? [];
-    const customerIds = [...new Set(pendingOrders.map((o) => (o as Record<string, string>).customer_id).filter(Boolean))];
+    const customerIds = Array.from(new Set(pendingOrders.map((o) => (o as Record<string, string>).customer_id).filter(Boolean)));
     let userMap: Record<string, { name: string; email: string; phone: string }> = {};
     if (customerIds.length > 0) {
       const { data: users } = await supabase
