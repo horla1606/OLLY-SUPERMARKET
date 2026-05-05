@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
       supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'customer'),
       supabase.from('orders').select('*', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo),
       supabase.from('orders').select('total_amount').gte('created_at', thirtyDaysAgo),
-      supabase.from('orders').select('*').eq('status', 'pending').order('created_at', { ascending: true }),
-      supabase.from('products').select('id', { count: 'exact', head: true }).lt('stock', 10),
+      supabase.from('orders').select('*').eq('status', 'pending').gte('created_at', thirtyDaysAgo).order('created_at', { ascending: true }),
+      supabase.from('products').select('id, stock', { count: 'exact', head: true }).lt('stock', 10).gt('stock', -1),
     ]);
 
     if (customersRes.error) throw customersRes.error;

@@ -33,26 +33,35 @@ export default function CustomerDashboardPage() {
     loadTab(tab);
   }, [tab, isAuthenticated, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function loadTab(t: Tab) {
+  async function loadTab(t: Tab, force = false) {
     setLoading(true);
     setOrdersError('');
     try {
       if (t === 'orders') {
-        // Show locally cached orders immediately while API loads
-        try {
-          const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
-          if (cached.length > 0) setOrders(cached);
-        } catch { /* ignore */ }
+        if (force) {
+          // Hard refresh: wipe cache so we get fresh data from API
+          try { localStorage.removeItem('olly_recent_orders'); } catch { /* ignore */ }
+        } else {
+          // Soft load: show cached orders immediately while API fetches
+          try {
+            const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
+            if (cached.length > 0) setOrders(cached);
+          } catch { /* ignore */ }
+        }
 
         const { data } = await ordersApi.getMyOrders();
         if (Array.isArray(data) && data.length > 0) {
-          // API returned real results — use them and update cache
           setOrders(data as Order[]);
           try { localStorage.setItem('olly_recent_orders', JSON.stringify(data)); } catch { /* ignore */ }
+        } else if (!force) {
+          // Only fall back to cache on non-forced load
+          try {
+            const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
+            setOrders(cached);
+          } catch { /* ignore */ }
         } else {
-          // API returned empty — keep showing cached orders (fallback)
-          const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
-          setOrders(cached);
+          // Force refresh returned empty — trust the API
+          setOrders([]);
         }
       } else if (t === 'cart') {
         const { data } = await cartApi.get();
@@ -63,7 +72,6 @@ export default function CustomerDashboardPage() {
       }
     } catch {
       if (t === 'orders') {
-        // Fall back to cached orders on network/API error
         try {
           const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
           setOrders(cached);
@@ -137,7 +145,7 @@ export default function CustomerDashboardPage() {
           <div className="space-y-4">
             <div className="flex justify-end">
               <button
-                onClick={() => loadTab('orders')}
+                onClick={() => loadTab('orders', true)}
                 className="text-xs text-primary hover:underline"
               >
                 ↻ Refresh

@@ -39,6 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string) => {
     const { data } = await authApi.login({ email }) as { data: AuthResponse };
+    // Clear any previous user's cached orders before setting new session
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('olly_recent_orders');
+      localStorage.removeItem('olly_guest_cart');
+    }
     auth.setToken(data.token);
     auth.setUser(data.user);
     setToken(data.token);
@@ -52,6 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signup = useCallback(async (payload: { email: string; name: string; phone?: string }) => {
     const { data } = await authApi.signup(payload) as { data: AuthResponse };
+    // Clear any previous user's cached orders on new account creation
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('olly_recent_orders');
+    }
     auth.setToken(data.token);
     auth.setUser(data.user);
     setToken(data.token);

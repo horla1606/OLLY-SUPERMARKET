@@ -38,7 +38,7 @@ function getGreeting(name: string): string {
 }
 
 export default function HomePage() {
-  const { user, isAuthenticated, isManager } = useAuth();
+  const { user, isAuthenticated, isManager, logout } = useAuth();
 
   const dashboardHref = isManager ? '/dashboard/admin' : '/dashboard/customer';
 
@@ -59,12 +59,15 @@ export default function HomePage() {
                 <span className="text-white/70 text-sm hidden sm:block">
                   {getGreeting(user.name ?? 'there')}
                 </span>
-                <Link
-                  href={dashboardHref}
-                  className="btn-accent text-sm px-3 py-1.5"
-                >
+                <Link href={dashboardHref} className="btn-accent text-sm px-3 py-1.5">
                   My Account
                 </Link>
+                <button
+                  onClick={() => logout()}
+                  className="text-white/70 hover:text-white text-sm transition-colors"
+                >
+                  Sign Out
+                </button>
               </>
             ) : (
               <>

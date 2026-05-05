@@ -149,8 +149,16 @@ function OverviewTab() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {data.pending_orders.map((order) => (
-              <ActiveOrderCard key={order.id} order={order} onUpdate={() => {
-                adminApi.getDashboard().then(({ data: d }) => setData(d as AdminDashboard)).catch(() => {});
+              <ActiveOrderCard key={order.id} order={order} onUpdate={(id) => {
+                // Optimistic: remove card immediately
+                setData((prev) => prev ? {
+                  ...prev,
+                  pending_orders: prev.pending_orders.filter((o) => o.id !== id),
+                } : prev);
+                // Background refresh to sync KPIs
+                adminApi.getDashboard()
+                  .then(({ data: d }) => setData(d as AdminDashboard))
+                  .catch(() => {});
               }} />
             ))}
           </div>
@@ -161,7 +169,7 @@ function OverviewTab() {
 }
 
 // ── Active order card with inline status controls ─────────────────────────────
-function ActiveOrderCard({ order, onUpdate }: { order: OrderWithCustomer; onUpdate: () => void }) {
+function ActiveOrderCard({ order, onUpdate }: { order: OrderWithCustomer; onUpdate: (id: string) => void }) {
   const [busy, setBusy] = useState(false);
   const items = order.items as Array<{ product_name: string; quantity: number; price: number }>;
 
@@ -169,8 +177,8 @@ function ActiveOrderCard({ order, onUpdate }: { order: OrderWithCustomer; onUpda
     setBusy(true);
     try {
       await adminApi.updateOrderStatus(order.id, status);
-      onUpdate();
-    } finally {
+      onUpdate(order.id);
+    } catch {
       setBusy(false);
     }
   }

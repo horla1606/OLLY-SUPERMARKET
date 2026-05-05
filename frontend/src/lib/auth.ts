@@ -67,6 +67,8 @@ export const auth = {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
+      localStorage.removeItem('olly_recent_orders');
+      localStorage.removeItem('olly_guest_cart');
       deleteCookie('olly_token');
       deleteCookie('olly_role');
     }
