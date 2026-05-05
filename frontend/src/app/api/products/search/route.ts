@@ -1,5 +1,6 @@
-import { NextRequest } from 'next/server';
+﻿import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase-server';
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {

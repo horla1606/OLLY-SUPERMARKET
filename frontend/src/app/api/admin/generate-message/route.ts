@@ -1,5 +1,6 @@
-import { NextRequest } from 'next/server';
+﻿import { NextRequest } from 'next/server';
 import { authenticate, guard } from '@/lib/auth-server';
+export const dynamic = 'force-dynamic';
 
 function mockGenerate(prompt: string): string {
   const lower = prompt.toLowerCase();

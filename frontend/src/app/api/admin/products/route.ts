@@ -1,7 +1,8 @@
-import { NextRequest } from 'next/server';
+﻿import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase-server';
 import { authenticate, guard } from '@/lib/auth-server';
 import { sendEmail, productNotificationHtml } from '@/lib/email-server';
+export const dynamic = 'force-dynamic';
 
 async function uploadImage(file: File): Promise<string | null> {
   const ext = (file.name.split('.').pop() ?? 'jpg').toLowerCase();
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
         if (!emails.length) return;
 
         const title = `New Product: ${newProduct.name}`;
-        const content = `${newProduct.name} is now available in our ${newProduct.category} section at ₦${newProduct.price.toLocaleString()}. Order now for fast pickup!`;
+        const content = `${newProduct.name} is now available in our ${newProduct.category} section at â‚¦${newProduct.price.toLocaleString()}. Order now for fast pickup!`;
 
         await Promise.all([
           sendEmail({ to: emails, subject: title, html: productNotificationHtml({ title, content }) }),

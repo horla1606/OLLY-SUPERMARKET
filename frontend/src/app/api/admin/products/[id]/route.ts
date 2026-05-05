@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase-server';
 import { authenticate, guard } from '@/lib/auth-server';
+export const dynamic = 'force-dynamic';
 
 async function uploadImage(file: File): Promise<string | null> {
   const ext = (file.name.split('.').pop() ?? 'jpg').toLowerCase();

@@ -1,6 +1,7 @@
-import { NextRequest } from 'next/server';
+﻿import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase-server';
 import { issueToken } from '@/lib/auth-server';
+export const dynamic = 'force-dynamic';
 
 const SAFE_FIELDS = 'id, email, name, phone, role, created_at';
 

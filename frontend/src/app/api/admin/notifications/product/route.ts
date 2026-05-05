@@ -1,7 +1,8 @@
-import { NextRequest } from 'next/server';
+﻿import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase-server';
 import { authenticate, guard } from '@/lib/auth-server';
 import { sendEmail, productNotificationHtml } from '@/lib/email-server';
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   const user = await authenticate(req);

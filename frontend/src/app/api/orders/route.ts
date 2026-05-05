@@ -1,6 +1,7 @@
-import { NextRequest } from 'next/server';
+﻿import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase-server';
 import { authenticate, guard } from '@/lib/auth-server';
+export const dynamic = 'force-dynamic';
 
 function generatePickupCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();

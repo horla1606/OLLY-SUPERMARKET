@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase-server';
 import { authenticate, guard } from '@/lib/auth-server';
 import { sendEmail, replyEmailHtml } from '@/lib/email-server';
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const user = await authenticate(req);
