@@ -259,10 +259,11 @@ function DutyTab({ staff }: { staff: Staff[] }) {
   const [toggling, setToggling]       = useState(false);
   const [toggleError, setToggleError] = useState('');
   const [checkDate, setCheckDate]     = useState(now.toISOString().split('T')[0]);
-  const [onDutyStaff, setOnDutyStaff] = useState<Array<{ staff?: { name: string; email?: string } }>>([]);
+  const [onDutyStaff, setOnDutyStaff] = useState<Array<{ staff_id?: string; staff?: { name: string; email?: string } }>>([]);
   const [checked, setChecked]         = useState(false);
   const [checkLoading, setCheckLoading] = useState(false);
   const [checkError, setCheckError]   = useState('');
+  const [removingId, setRemovingId]   = useState<string | null>(null);
 
   const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
 
@@ -314,7 +315,7 @@ function DutyTab({ staff }: { staff: Staff[] }) {
     setChecked(false);
     try {
       const { data } = await adminStaffApi.getDutyByDate(checkDate);
-      setOnDutyStaff(data as Array<{ staff?: { name: string; email?: string } }>);
+      setOnDutyStaff(data as Array<{ staff_id?: string; staff?: { name: string; email?: string } }>);
       setChecked(true);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })
@@ -322,6 +323,20 @@ function DutyTab({ staff }: { staff: Staff[] }) {
       setCheckError(msg);
     } finally {
       setCheckLoading(false);
+    }
+  }
+
+  async function removeFromDuty(staffId: string) {
+    setRemovingId(staffId);
+    try {
+      await adminStaffApi.assignDuty(staffId, checkDate, 'remove');
+      setOnDutyStaff((prev) => prev.filter((d) => d.staff_id !== staffId));
+      // Refresh calendar if this staff member is currently selected
+      if (selectedId === staffId) await loadDuties();
+    } catch {
+      // silently ignore — user can try again
+    } finally {
+      setRemovingId(null);
     }
   }
 
@@ -411,20 +426,30 @@ function DutyTab({ staff }: { staff: Staff[] }) {
           <ul className="space-y-2">
             {onDutyStaff.map((d, i) => {
               const s = d.staff as { name?: string; email?: string } | null | undefined;
+              const sid = d.staff_id ?? '';
               return (
                 <li key={i} className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-100 rounded-xl">
                   <span className="text-green-600 font-bold text-lg">✓</span>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="font-medium text-gray-800 text-sm">
                       {s?.name ?? <span className="text-gray-400 italic">Unknown staff</span>}
                     </p>
                     {s?.email && <p className="text-xs text-gray-400">{s.email}</p>}
                     {!s?.name && (
                       <p className="text-xs text-red-400 mt-0.5">
-                        ID: {(d as Record<string, string>).staff_id ?? '—'} — no matching staff record
+                        ID: {sid || '—'} — no matching staff record
                       </p>
                     )}
                   </div>
+                  {sid && (
+                    <button
+                      onClick={() => removeFromDuty(sid)}
+                      disabled={removingId === sid}
+                      className="text-xs text-red-500 hover:underline shrink-0 disabled:opacity-50"
+                    >
+                      {removingId === sid ? '…' : 'Remove'}
+                    </button>
+                  )}
                 </li>
               );
             })}

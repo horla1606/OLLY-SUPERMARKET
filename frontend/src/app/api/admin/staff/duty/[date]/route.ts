@@ -17,7 +17,17 @@ export async function GET(req: NextRequest, { params }: { params: { date: string
     if (error) throw error;
 
     const dutyList = duties ?? [];
-    const staffIds = Array.from(new Set(dutyList.map((d) => (d as Record<string, string>).staff_id).filter(Boolean)));
+
+    // Deduplicate by staff_id — old rows may exist before the DELETE+INSERT fix
+    const seen = new Set<string>();
+    const unique = dutyList.filter((d) => {
+      const sid = (d as Record<string, string>).staff_id;
+      if (!sid || seen.has(sid)) return false;
+      seen.add(sid);
+      return true;
+    });
+
+    const staffIds = Array.from(seen);
     let staffMap: Record<string, unknown> = {};
     if (staffIds.length > 0) {
       const { data: staffRows } = await supabase
@@ -27,7 +37,7 @@ export async function GET(req: NextRequest, { params }: { params: { date: string
       if (staffRows) staffMap = Object.fromEntries(staffRows.map((s) => [s.id, s]));
     }
 
-    return Response.json(dutyList.map((d) => ({
+    return Response.json(unique.map((d) => ({
       ...d,
       staff: staffMap[(d as Record<string, string>).staff_id] ?? null,
     })));

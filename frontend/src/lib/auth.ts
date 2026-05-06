@@ -67,10 +67,12 @@ export const auth = {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
-      localStorage.removeItem('olly_recent_orders');
       localStorage.removeItem('olly_guest_cart');
       deleteCookie('olly_token');
       deleteCookie('olly_role');
+      // olly_recent_orders is intentionally kept so the customer dashboard
+      // stays populated when the JWT expires mid-session.  A new user's orders
+      // from the API will overwrite the cache on their first successful fetch.
     }
   },
 

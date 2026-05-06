@@ -24,14 +24,27 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     if (fetchErr) throw fetchErr;
 
-    const { data: updated, error: updateErr } = await supabase
+    // Try with replied_at; fall back without it if the column doesn't exist yet.
+    let updated: Record<string, unknown> | null = null;
+    const { data: d1, error: e1 } = await supabase
       .from('messages')
       .update({ reply: reply.trim(), replied_at: new Date().toISOString(), status: 'replied' })
       .eq('id', params.id)
       .select()
       .single();
 
-    if (updateErr) throw updateErr;
+    if (e1) {
+      const { data: d2, error: e2 } = await supabase
+        .from('messages')
+        .update({ reply: reply.trim(), status: 'replied' })
+        .eq('id', params.id)
+        .select()
+        .single();
+      if (e2) throw e2;
+      updated = d2 as Record<string, unknown>;
+    } else {
+      updated = d1 as Record<string, unknown>;
+    }
 
     // Fetch customer details separately
     const customerId = (msg as Record<string, string>).customer_id;
@@ -56,7 +69,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       });
     }
 
-    return Response.json(updated);
+    return Response.json(updated ?? {});
   } catch (err) {
     console.error('admin/messages reply:', err);
     return Response.json({ message: 'Internal server error' }, { status: 500 });
