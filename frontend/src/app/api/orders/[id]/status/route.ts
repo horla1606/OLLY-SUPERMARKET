@@ -28,27 +28,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     if (error) throw error;
 
-    // Record analytics when completed (fire-and-forget)
-    if (status === 'completed' && updatedOrder) {
-      void (async () => {
-        try {
-          const order = updatedOrder as {
-            items: Array<{ product_id: string; quantity: number; price: number }>;
-            assigned_staff_id?: string;
-          };
-          const today = new Date().toISOString().split('T')[0];
-          const rows = (order.items ?? []).map((item) => ({
-            product_id: item.product_id,
-            date: today,
-            sales_count: item.quantity,
-            revenue: Math.round(item.price * item.quantity * 100) / 100,
-            staff_id: order.assigned_staff_id ?? null,
-          }));
-          if (rows.length) await supabase.from('analytics').insert(rows);
-        } catch { /* best-effort */ }
-      })();
-    }
-
     return Response.json(updatedOrder);
   } catch (err) {
     console.error('update order status:', err);

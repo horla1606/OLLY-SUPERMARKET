@@ -434,13 +434,14 @@ function DutyTab({ staff }: { staff: Staff[] }) {
             <button
               onClick={async () => {
                 if (!confirm(`Remove ALL staff from duty on ${checkDate}?`)) return;
-                for (const d of onDutyStaff) {
-                  if (d.staff_id) {
-                    try { await adminStaffApi.assignDuty(d.staff_id, checkDate, 'remove'); } catch { /* ignore */ }
-                  }
+                try {
+                  await adminStaffApi.clearDutyByDate(checkDate);
+                  setOnDutyStaff([]);
+                  setChecked(false);
+                  if (selectedId) await loadDuties();
+                } catch {
+                  setCheckError('Failed to clear duties for this date. Try again.');
                 }
-                setOnDutyStaff([]);
-                if (selectedId) await loadDuties();
               }}
               className="text-xs text-red-500 hover:underline"
             >

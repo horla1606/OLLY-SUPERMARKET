@@ -99,7 +99,11 @@ export default function CustomerDashboardPage() {
         const { data } = await messagesApi.getMyMessages();
         setMessages(data as Message[]);
       }
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message ?? 'Failed to load. Please try again.';
+      setFeedback(msg);
+    } finally {
       setLoading(false);
     }
   }

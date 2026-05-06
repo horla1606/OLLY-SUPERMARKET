@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    // Auto-assign on-duty staff + record analytics (synchronous so data is always written)
+    // Auto-assign on-duty staff (best-effort, non-fatal)
     const orderId = (order as { id: string }).id;
     const today = new Date().toISOString().split('T')[0];
     try {
@@ -134,19 +134,8 @@ export async function POST(req: NextRequest) {
           .update({ assigned_staff_id: staffId })
           .eq('id', orderId);
       }
-      const analyticsRows = orderItems.map((item) => ({
-        product_id: item.product_id,
-        date: today,
-        sales_count: item.quantity,
-        revenue: Math.round(item.price * item.quantity * 100) / 100,
-        staff_id: staffId,
-      }));
-      if (analyticsRows.length) {
-        await supabase.from('analytics').insert(analyticsRows);
-      }
-    } catch (analyticsErr) {
-      console.error('analytics/staff write after order:', analyticsErr);
-      // Non-fatal — order still confirmed, analytics failure logged
+    } catch (assignErr) {
+      console.error('auto-assign staff after order:', assignErr);
     }
 
     return Response.json(order, { status: 201 });

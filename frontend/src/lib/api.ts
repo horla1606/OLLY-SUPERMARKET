@@ -150,6 +150,8 @@ export const adminStaffApi = {
     api.patch(`/api/admin/staff/${id}/duty`, { date, action }),
   getDutyByDate: (date: string) =>
     api.get(`/api/admin/staff/duty/${date}`),
+  clearDutyByDate: (date: string) =>
+    api.delete(`/api/admin/staff/duty/${date}`),
   getDuties: (id: string, month?: string) =>
     api.get(`/api/admin/staff/${id}/duties`, { params: month ? { month } : undefined }),
   assignOrder: (orderId: string, staffId: string) =>

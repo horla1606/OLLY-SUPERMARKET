@@ -3,6 +3,24 @@ import { supabase } from '@/lib/supabase-server';
 import { authenticate, guard } from '@/lib/auth-server';
 export const dynamic = 'force-dynamic';
 
+export async function DELETE(req: NextRequest, { params }: { params: { date: string } }) {
+  const user = await authenticate(req);
+  const authErr = guard(user, 'manager');
+  if (authErr) return authErr;
+
+  try {
+    const { error } = await supabase
+      .from('staff_duties')
+      .delete()
+      .eq('date', params.date);
+    if (error) throw error;
+    return Response.json({ cleared: true, date: params.date });
+  } catch (err) {
+    console.error('admin/staff duty clear date:', err);
+    return Response.json({ message: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function GET(req: NextRequest, { params }: { params: { date: string } }) {
   const user = await authenticate(req);
   const authErr = guard(user, 'manager');
