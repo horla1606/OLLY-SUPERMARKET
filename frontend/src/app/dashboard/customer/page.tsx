@@ -106,13 +106,15 @@ export default function CustomerDashboardPage() {
   async function cancelOrder(orderId: string) {
     setCancellingId(orderId);
     try {
-      const { data } = await ordersApi.cancel(orderId);
-      const updated = data as Order;
-      setOrders((prev) => {
-        const next = prev.map((o) => o.id === orderId ? { ...o, status: updated.status } : o);
-        try { localStorage.setItem('olly_recent_orders', JSON.stringify(next)); } catch { /* ignore */ }
-        return next;
-      });
+      await ordersApi.cancel(orderId);
+      // Update cache immediately (synchronously, before any re-render)
+      try {
+        const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
+        const next = cached.map((o) => o.id === orderId ? { ...o, status: 'cancelled' } : o);
+        localStorage.setItem('olly_recent_orders', JSON.stringify(next));
+      } catch { /* ignore */ }
+      // Force-reload from server so UI reflects real DB state
+      await loadTab('orders', true);
     } catch {
       setFeedback('Could not cancel order. Please try again.');
       setTimeout(() => setFeedback(''), 3000);

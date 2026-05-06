@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   try {
     const { data: order, error: fetchErr } = await supabase
       .from('orders')
-      .select('id, customer_id, status')
+      .select('id, customer_id, status, items')
       .eq('id', params.id)
       .single();
 
@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return Response.json({ message: 'Order not found' }, { status: 404 });
     }
 
-    // Verify the order belongs to this user (check all IDs sharing the same email)
+    // Verify ownership — check all user IDs sharing this email
     const { data: userRows } = await supabase
       .from('users')
       .select('id')
@@ -47,6 +47,34 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       .single();
 
     if (updateErr) throw updateErr;
+
+    // Restore stock for each item in the cancelled order (best-effort)
+    try {
+      const items = (order.items ?? []) as Array<{ product_id: string; quantity: number }>;
+      if (items.length > 0) {
+        const productIds = items.map((i) => i.product_id);
+        const { data: products } = await supabase
+          .from('products')
+          .select('id, stock')
+          .in('id', productIds);
+
+        if (products?.length) {
+          const stockMap = new Map(products.map((p) => [p.id as string, p.stock as number]));
+          await Promise.all(
+            items.map((item) => {
+              const current = stockMap.get(item.product_id) ?? 0;
+              return supabase
+                .from('products')
+                .update({ stock: current + item.quantity })
+                .eq('id', item.product_id);
+            })
+          );
+        }
+      }
+    } catch (stockErr) {
+      console.error('restore stock after cancel:', stockErr);
+    }
+
     return Response.json(updated);
   } catch (err) {
     console.error('cancel order:', err);
