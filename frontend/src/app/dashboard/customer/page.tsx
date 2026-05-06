@@ -279,14 +279,26 @@ export default function CustomerDashboardPage() {
 
             {/* Message history */}
             {messages.map((m) => (
-              <div key={m.id} className="card">
+              <div key={m.id} className={`card ${m.status === 'replied' ? 'border-l-4 border-primary' : ''}`}>
                 <div className="flex justify-between items-start">
                   <p className="text-sm text-gray-800">{m.content}</p>
-                  <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full ml-3 shrink-0">
+                  <span className={`text-xs px-2 py-0.5 rounded-full ml-3 shrink-0 ${
+                    m.status === 'replied' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'
+                  }`}>
                     {m.status}
                   </span>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">{new Date(m.created_at).toLocaleString()}</p>
+                <p className="text-xs text-gray-400 mt-1">{new Date(m.created_at).toLocaleString()}</p>
+
+                {m.reply && (
+                  <div className="mt-3 pt-3 border-t border-neutral-dark bg-primary/5 rounded-xl p-3">
+                    <p className="text-xs font-semibold text-primary mb-1">Reply from OLLY Support</p>
+                    <p className="text-sm text-gray-700">{m.reply}</p>
+                    {m.replied_at && (
+                      <p className="text-xs text-gray-400 mt-1">{new Date(m.replied_at).toLocaleString()}</p>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

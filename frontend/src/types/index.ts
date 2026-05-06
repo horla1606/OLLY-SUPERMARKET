@@ -73,6 +73,8 @@ export interface Message {
   content: string;
   type: MessageType;
   status: MessageStatus;
+  reply?: string;
+  replied_at?: string;
   created_at: string;
 }
 

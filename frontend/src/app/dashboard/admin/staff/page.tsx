@@ -257,9 +257,12 @@ function DutyTab({ staff }: { staff: Staff[] }) {
   const [duties, setDuties]           = useState<string[]>([]);
   const [loadingDuties, setLoadingDuties] = useState(false);
   const [toggling, setToggling]       = useState(false);
+  const [toggleError, setToggleError] = useState('');
   const [checkDate, setCheckDate]     = useState(now.toISOString().split('T')[0]);
-  const [onDutyStaff, setOnDutyStaff] = useState<Array<{ staff?: { name: string } }>>([]);
+  const [onDutyStaff, setOnDutyStaff] = useState<Array<{ staff?: { name: string; email?: string } }>>([]);
   const [checked, setChecked]         = useState(false);
+  const [checkLoading, setCheckLoading] = useState(false);
+  const [checkError, setCheckError]   = useState('');
 
   const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
 
@@ -280,13 +283,17 @@ function DutyTab({ staff }: { staff: Staff[] }) {
     if (!selectedId || toggling) return;
     const action: 'assign' | 'remove' = duties.includes(dateStr) ? 'remove' : 'assign';
     setToggling(true);
+    setToggleError('');
     setDuties((prev) =>
       action === 'assign' ? [...prev, dateStr] : prev.filter((d) => d !== dateStr)
     );
     try {
       await adminStaffApi.assignDuty(selectedId, dateStr, action);
-    } catch {
-      await loadDuties(); // revert on error
+    } catch (err: unknown) {
+      await loadDuties(); // revert optimistic update
+      const msg = (err as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message ?? 'Failed to update duty. Check that the staff_duties table exists in Supabase.';
+      setToggleError(msg);
     } finally {
       setToggling(false);
     }
@@ -302,9 +309,20 @@ function DutyTab({ staff }: { staff: Staff[] }) {
   }
 
   async function checkWhoOnDuty() {
-    const { data } = await adminStaffApi.getDutyByDate(checkDate);
-    setOnDutyStaff(data as Array<{ staff?: { name: string } }>);
-    setChecked(true);
+    setCheckLoading(true);
+    setCheckError('');
+    setChecked(false);
+    try {
+      const { data } = await adminStaffApi.getDutyByDate(checkDate);
+      setOnDutyStaff(data as Array<{ staff?: { name: string; email?: string } }>);
+      setChecked(true);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })
+        ?.response?.data?.message ?? 'Failed to load duty roster.';
+      setCheckError(msg);
+    } finally {
+      setCheckLoading(false);
+    }
   }
 
   const selectedStaff = staff.find((s) => s.id === selectedId);
@@ -336,6 +354,12 @@ function DutyTab({ staff }: { staff: Staff[] }) {
           </div>
         )}
 
+        {toggleError && (
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs">
+            {toggleError}
+          </div>
+        )}
+
         {selectedId ? (
           <MonthCalendar
             year={year} month={month}
@@ -359,12 +383,22 @@ function DutyTab({ staff }: { staff: Staff[] }) {
             type="date"
             className="input-field flex-1"
             value={checkDate}
-            onChange={(e) => { setCheckDate(e.target.value); setChecked(false); }}
+            onChange={(e) => { setCheckDate(e.target.value); setChecked(false); setCheckError(''); }}
           />
-          <button onClick={checkWhoOnDuty} className="btn-primary px-4 py-2 shrink-0">
-            Check
+          <button
+            onClick={checkWhoOnDuty}
+            disabled={checkLoading}
+            className="btn-primary px-4 py-2 shrink-0 disabled:opacity-50"
+          >
+            {checkLoading ? '…' : 'Check'}
           </button>
         </div>
+
+        {checkError && (
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs">
+            {checkError}
+          </div>
+        )}
 
         {checked && onDutyStaff.length === 0 && (
           <div className="text-center py-8">
@@ -378,13 +412,16 @@ function DutyTab({ staff }: { staff: Staff[] }) {
             {onDutyStaff.map((d, i) => (
               <li key={i} className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-100 rounded-xl">
                 <span className="text-green-600 font-bold text-lg">✓</span>
-                <span className="font-medium text-gray-800 text-sm">{d.staff?.name ?? 'Unknown'}</span>
+                <div>
+                  <p className="font-medium text-gray-800 text-sm">{d.staff?.name ?? 'Unknown'}</p>
+                  {d.staff?.email && <p className="text-xs text-gray-400">{d.staff.email}</p>}
+                </div>
               </li>
             ))}
           </ul>
         )}
 
-        {!checked && (
+        {!checked && !checkError && !checkLoading && (
           <p className="text-sm text-gray-400 text-center pt-6">
             Pick a date and click Check to see the duty roster.
           </p>

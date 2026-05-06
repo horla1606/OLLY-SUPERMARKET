@@ -6,11 +6,11 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
 } from 'recharts';
-import { adminAnalyticsApi, productsApi } from '@/lib/api';
+import { adminAnalyticsApi, productsApi, adminStaffApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import type {
   AnalyticsDashboardData, ProductPerformance,
-  RevenuePoint, StaffPerformance, Product,
+  RevenuePoint, StaffPerformance, Product, Staff,
 } from '@/types';
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -93,18 +93,24 @@ function EmptyChart({ msg = 'No data yet.' }: { msg?: string }) {
 function OverviewTab() {
   const [data, setData]         = useState<AnalyticsDashboardData | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [staffList, setStaffList] = useState<Staff[]>([]);
   const [loading, setLoading]   = useState(true);
   const [entry, setEntry]       = useState({
-    product_id: '', date: todayStr(), sales_count: '', revenue: '',
+    product_id: '', staff_id: '', date: todayStr(), sales_count: '', revenue: '',
   });
   const [saving, setSaving]     = useState(false);
   const [feedback, setFeedback] = useState('');
 
   useEffect(() => {
-    Promise.all([adminAnalyticsApi.getDashboard(), productsApi.getAll()])
-      .then(([{ data: d }, { data: p }]) => {
+    Promise.all([
+      adminAnalyticsApi.getDashboard(),
+      productsApi.getAll(),
+      adminStaffApi.getAll(),
+    ])
+      .then(([{ data: d }, { data: p }, { data: s }]) => {
         setData(d as AnalyticsDashboardData);
         setProducts(p as Product[]);
+        setStaffList(s as Staff[]);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -114,15 +120,16 @@ function OverviewTab() {
     setSaving(true);
     try {
       await adminAnalyticsApi.manualEntry({
-        product_id:  entry.product_id || undefined,
+        product_id:  entry.product_id  || undefined,
+        staff_id:    entry.staff_id    || undefined,
         date:        entry.date,
         sales_count: Number(entry.sales_count),
         revenue:     Number(entry.revenue),
       });
       setFeedback('Entry saved successfully!');
-      setEntry({ product_id: '', date: todayStr(), sales_count: '', revenue: '' });
+      setEntry({ product_id: '', staff_id: '', date: todayStr(), sales_count: '', revenue: '' });
       // Reload dashboard data to reflect new entry
-      const [{ data: d }] = await Promise.all([adminAnalyticsApi.getDashboard()]);
+      const { data: d } = await adminAnalyticsApi.getDashboard();
       setData(d as AnalyticsDashboardData);
     } catch {
       setFeedback('Failed to save entry. Please try again.');
@@ -199,7 +206,7 @@ function OverviewTab() {
             {feedback}
           </div>
         )}
-        <form onSubmit={handleEntry} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <form onSubmit={handleEntry} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Product (optional)</label>
             <select
@@ -210,6 +217,19 @@ function OverviewTab() {
               <option value="">— none —</option>
               {products.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Staff (optional — for performance tracking)</label>
+            <select
+              className="input-field"
+              value={entry.staff_id}
+              onChange={(e) => setEntry((f) => ({ ...f, staff_id: e.target.value }))}
+            >
+              <option value="">— none —</option>
+              {staffList.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
           </div>
@@ -237,7 +257,7 @@ function OverviewTab() {
               onChange={(e) => setEntry((f) => ({ ...f, revenue: e.target.value }))}
             />
           </div>
-          <div className="sm:col-span-2 lg:col-span-4">
+          <div className="sm:col-span-2 lg:col-span-3 flex items-end">
             <button type="submit" disabled={saving} className="btn-primary px-8 py-2.5">
               {saving ? 'Saving…' : 'Add Entry'}
             </button>
