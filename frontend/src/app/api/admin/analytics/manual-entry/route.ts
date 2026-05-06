@@ -3,16 +3,16 @@ import { supabase } from '@/lib/supabase-server';
 import { authenticate, guard } from '@/lib/auth-server';
 export const dynamic = 'force-dynamic';
 
-const MISSING_TABLE_SQL = `
-CREATE TABLE analytics (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  product_id uuid,
-  staff_id uuid,
-  date date NOT NULL,
+const CREATE_TABLE_SQL = `-- Run this in your Supabase SQL Editor:
+CREATE TABLE IF NOT EXISTS analytics (
+  id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  product_id  uuid,
+  staff_id    uuid,
+  date        date NOT NULL,
   sales_count integer DEFAULT 0,
-  revenue numeric(10,2) DEFAULT 0,
-  created_at timestamptz DEFAULT now()
-);`.trim();
+  revenue     numeric(10,2) DEFAULT 0,
+  created_at  timestamptz DEFAULT now()
+);`;
 
 export async function POST(req: NextRequest) {
   const user = await authenticate(req);
@@ -38,19 +38,19 @@ export async function POST(req: NextRequest) {
       .select()
       .single();
 
+    // Any error here almost certainly means the analytics table doesn't exist.
+    // Return a helpful message with the SQL to create it.
     if (error) {
-      const msg = (error as { message?: string }).message ?? '';
-      if (msg.includes('does not exist') || msg.includes('relation') || msg.includes('42P01')) {
-        return Response.json({
-          message: `The analytics table does not exist in your Supabase database. Run this SQL in your Supabase SQL editor to create it:\n\n${MISSING_TABLE_SQL}`,
-        }, { status: 422 });
-      }
-      throw error;
+      return Response.json({
+        message: `The analytics table does not exist in your Supabase database.\n\n${CREATE_TABLE_SQL}`,
+      }, { status: 422 });
     }
 
     return Response.json(data, { status: 201 });
   } catch (err) {
     console.error('analytics/manual-entry:', err);
-    return Response.json({ message: 'Internal server error' }, { status: 500 });
+    return Response.json({
+      message: `Failed to save entry. The analytics table may not exist.\n\n${CREATE_TABLE_SQL}`,
+    }, { status: 500 });
   }
 }

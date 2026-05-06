@@ -50,9 +50,23 @@ export default function CustomerDashboardPage() {
         const apiOrders = Array.isArray(data) ? (data as Order[]) : [];
 
         if (force) {
-          // Force refresh: trust the API completely
-          setOrders(apiOrders);
-          try { localStorage.setItem('olly_recent_orders', JSON.stringify(apiOrders)); } catch { /* ignore */ }
+          // Force refresh: only update from API if it actually returned orders.
+          // If API returns empty while we have cached orders, something is wrong —
+          // keep showing what we have rather than wiping the screen.
+          if (apiOrders.length > 0) {
+            setOrders(apiOrders);
+            try { localStorage.setItem('olly_recent_orders', JSON.stringify(apiOrders)); } catch { /* ignore */ }
+          } else {
+            try {
+              const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
+              if (cached.length > 0) {
+                setOrders(cached);
+                setOrdersError('Could not fetch latest orders. Showing cached orders — try again shortly.');
+              } else {
+                setOrders([]);
+              }
+            } catch { setOrders([]); }
+          }
         } else {
           // Merge API results with cache — keep locally-placed orders the API might not have yet
           try {

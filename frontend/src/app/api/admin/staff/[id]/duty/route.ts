@@ -15,15 +15,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return Response.json({ message: 'date and action are required' }, { status: 400 });
     }
 
-    if (action === 'assign') {
-      const { data, error } = await supabase
-        .from('staff_duties')
-        .upsert({ staff_id: params.id, date }, { onConflict: 'staff_id,date' })
-        .select()
-        .single();
-      if (error) throw error;
-      return Response.json(data);
-    } else {
+    if (action === 'remove') {
       const { error } = await supabase
         .from('staff_duties')
         .delete()
@@ -32,6 +24,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       if (error) throw error;
       return Response.json({ removed: true, date });
     }
+
+    // assign: delete any existing entries first (prevents duplicates without
+    // requiring a UNIQUE constraint in the database), then insert fresh
+    await supabase
+      .from('staff_duties')
+      .delete()
+      .eq('staff_id', params.id)
+      .eq('date', date);
+
+    const { data, error } = await supabase
+      .from('staff_duties')
+      .insert({ staff_id: params.id, date })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return Response.json(data);
   } catch (err) {
     console.error('admin/staff duty toggle:', err);
     return Response.json({ message: 'Internal server error' }, { status: 500 });
