@@ -9,13 +9,30 @@ export async function GET(req: NextRequest) {
   if (authErr) return authErr;
 
   try {
-    const { data, error } = await supabase
+    const { data: notifs, error } = await supabase
       .from('notifications')
-      .select('*, products:product_id(name)')
+      .select('*')
       .order('sent_at', { ascending: false });
 
     if (error) throw error;
-    return Response.json(data ?? []);
+
+    const notifications = notifs ?? [];
+    const productIds = Array.from(new Set(notifications.map((n) => (n as Record<string, string>).product_id).filter(Boolean)));
+    let productMap: Record<string, string> = {};
+    if (productIds.length > 0) {
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, name')
+        .in('id', productIds);
+      if (products) productMap = Object.fromEntries(products.map((p) => [p.id, p.name]));
+    }
+
+    return Response.json(notifications.map((n) => ({
+      ...n,
+      products: (n as Record<string, string>).product_id
+        ? { name: productMap[(n as Record<string, string>).product_id] ?? 'Unknown' }
+        : null,
+    })));
   } catch (err) {
     console.error('admin/notifications get:', err);
     return Response.json({ message: 'Internal server error' }, { status: 500 });

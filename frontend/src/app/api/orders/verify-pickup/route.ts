@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
     const { data: order, error } = await supabase
       .from('orders')
-      .select('*, users(name, email, phone)')
+      .select('*')
       .eq('pickup_code', String(pickup_code).trim())
       .maybeSingle();
 
@@ -26,7 +26,13 @@ export async function POST(req: NextRequest) {
       return Response.json({ message: 'No order found for this pickup code' }, { status: 404 });
     }
 
-    return Response.json(order);
+    const { data: u } = await supabase
+      .from('users')
+      .select('name, email, phone')
+      .eq('id', (order as Record<string, string>).customer_id)
+      .maybeSingle();
+
+    return Response.json({ ...order, users: u ?? null });
   } catch (err) {
     console.error('verify pickup:', err);
     return Response.json({ message: 'Internal server error' }, { status: 500 });

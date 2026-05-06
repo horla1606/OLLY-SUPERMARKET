@@ -118,33 +118,36 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    // Auto-assign on-duty staff + record analytics (fire-and-forget)
+    // Auto-assign on-duty staff + record analytics (synchronous so data is always written)
     const orderId = (order as { id: string }).id;
-    void (async () => {
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        const { data: duties } = await supabase
-          .from('staff_duties')
-          .select('staff_id')
-          .eq('date', today)
-          .limit(1);
-        const staffId = duties?.[0]?.staff_id ?? null;
-        if (staffId) {
-          await supabase
-            .from('orders')
-            .update({ assigned_staff_id: staffId })
-            .eq('id', orderId);
-        }
-        const analyticsRows = orderItems.map((item) => ({
-          product_id: item.product_id,
-          date: today,
-          sales_count: item.quantity,
-          revenue: Math.round(item.price * item.quantity * 100) / 100,
-          staff_id: staffId,
-        }));
-        if (analyticsRows.length) await supabase.from('analytics').insert(analyticsRows);
-      } catch { /* best-effort */ }
-    })();
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const { data: duties } = await supabase
+        .from('staff_duties')
+        .select('staff_id')
+        .eq('date', today)
+        .limit(1);
+      const staffId = duties?.[0]?.staff_id ?? null;
+      if (staffId) {
+        await supabase
+          .from('orders')
+          .update({ assigned_staff_id: staffId })
+          .eq('id', orderId);
+      }
+      const analyticsRows = orderItems.map((item) => ({
+        product_id: item.product_id,
+        date: today,
+        sales_count: item.quantity,
+        revenue: Math.round(item.price * item.quantity * 100) / 100,
+        staff_id: staffId,
+      }));
+      if (analyticsRows.length) {
+        await supabase.from('analytics').insert(analyticsRows);
+      }
+    } catch (analyticsErr) {
+      console.error('analytics/staff write after order:', analyticsErr);
+      // Non-fatal — order still confirmed, analytics failure logged
+    }
 
     return Response.json(order, { status: 201 });
   } catch (err) {

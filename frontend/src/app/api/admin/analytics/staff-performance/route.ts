@@ -16,25 +16,38 @@ export async function GET(req: NextRequest) {
     const startDate = searchParams.get('start') ?? new Date(Date.now() - 30 * 86_400_000).toISOString().split('T')[0];
     const endDate = searchParams.get('end') ?? new Date().toISOString().split('T')[0];
 
-    const { data, error } = await supabase
+    const { data: rows, error } = await supabase
       .from('analytics')
-      .select('staff_id, revenue, sales_count, users:staff_id(name, email)')
+      .select('staff_id, revenue, sales_count')
       .not('staff_id', 'is', null)
       .gte('date', startDate)
       .lte('date', endDate);
 
     if (error) throw error;
 
+    // Aggregate by staff_id first
     const smap = new Map<string, { staff_id: string; name: string; email: string; revenue: number; sales_count: number }>();
-    for (const row of (data ?? []) as Row[]) {
+    for (const row of (rows ?? []) as Row[]) {
       const sid = row.staff_id as string;
-      const u = row.users as { name: string; email: string } | null;
       if (!smap.has(sid)) {
-        smap.set(sid, { staff_id: sid, name: u?.name ?? 'Unknown', email: u?.email ?? '', revenue: 0, sales_count: 0 });
+        smap.set(sid, { staff_id: sid, name: 'Unknown', email: '', revenue: 0, sales_count: 0 });
       }
       const e = smap.get(sid)!;
       e.revenue += Number(row.revenue ?? 0);
       e.sales_count += Number(row.sales_count ?? 0);
+    }
+
+    // Fetch staff names from staff table (NOT users table)
+    const staffIds = Array.from(smap.keys());
+    if (staffIds.length > 0) {
+      const { data: staffRows } = await supabase
+        .from('staff')
+        .select('id, name, email')
+        .in('id', staffIds);
+      for (const s of staffRows ?? []) {
+        const entry = smap.get(s.id);
+        if (entry) { entry.name = s.name; entry.email = s.email; }
+      }
     }
 
     return Response.json(

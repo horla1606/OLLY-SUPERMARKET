@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
     let q = supabase
       .from('analytics')
-      .select('product_id, revenue, sales_count, products:product_id(name, category)')
+      .select('product_id, revenue, sales_count')
       .not('product_id', 'is', null);
 
     if (start) q = q.gte('date', start);
@@ -30,13 +30,25 @@ export async function GET(req: NextRequest) {
     const pmap = new Map<string, { product_id: string; name: string; category: string; revenue: number; sales_count: number }>();
     for (const row of (data ?? []) as Row[]) {
       const pid = row.product_id as string;
-      const prod = row.products as { name: string; category: string } | null;
       if (!pmap.has(pid)) {
-        pmap.set(pid, { product_id: pid, name: prod?.name ?? 'Unknown', category: prod?.category ?? '', revenue: 0, sales_count: 0 });
+        pmap.set(pid, { product_id: pid, name: 'Unknown', category: '', revenue: 0, sales_count: 0 });
       }
       const e = pmap.get(pid)!;
       e.revenue += Number(row.revenue ?? 0);
       e.sales_count += Number(row.sales_count ?? 0);
+    }
+
+    // Fetch product names separately
+    const productIds = Array.from(pmap.keys());
+    if (productIds.length > 0) {
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, name, category')
+        .in('id', productIds);
+      for (const p of products ?? []) {
+        const entry = pmap.get(p.id);
+        if (entry) { entry.name = p.name; entry.category = p.category; }
+      }
     }
 
     return Response.json(

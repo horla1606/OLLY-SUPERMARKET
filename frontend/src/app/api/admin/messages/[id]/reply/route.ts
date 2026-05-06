@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const { data: msg, error: fetchErr } = await supabase
       .from('messages')
-      .select('*, users:customer_id(name, email)')
+      .select('*')
       .eq('id', params.id)
       .single();
 
@@ -33,7 +33,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     if (updateErr) throw updateErr;
 
-    const customer = (msg as Record<string, unknown>).users as { name: string; email: string } | null;
+    // Fetch customer details separately
+    const customerId = (msg as Record<string, string>).customer_id;
+    let customer: { name: string; email: string } | null = null;
+    if (customerId) {
+      const { data: u } = await supabase
+        .from('users')
+        .select('name, email')
+        .eq('id', customerId)
+        .maybeSingle();
+      customer = u ?? null;
+    }
     if (customer?.email) {
       await sendEmail({
         to: customer.email,

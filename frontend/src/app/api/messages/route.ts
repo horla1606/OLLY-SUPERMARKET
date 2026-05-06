@@ -44,13 +44,28 @@ export async function GET(req: NextRequest) {
   if (authErr) return authErr;
 
   try {
-    const { data, error } = await supabase
+    const { data: msgs, error } = await supabase
       .from('messages')
-      .select('*, users(name, email)')
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return Response.json(data);
+
+    const messages = msgs ?? [];
+    const customerIds = Array.from(new Set(messages.map((m) => (m as Record<string, string>).customer_id).filter(Boolean)));
+    let userMap: Record<string, unknown> = {};
+    if (customerIds.length > 0) {
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, name, email, phone')
+        .in('id', customerIds);
+      if (users) userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+    }
+
+    return Response.json(messages.map((m) => ({
+      ...m,
+      users: userMap[(m as Record<string, string>).customer_id] ?? null,
+    })));
   } catch (err) {
     console.error('get all messages:', err);
     return Response.json({ message: 'Internal server error' }, { status: 500 });

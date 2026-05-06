@@ -12,14 +12,31 @@ export async function GET(req: NextRequest) {
     const platform = new URL(req.url).searchParams.get('platform');
     let q = supabase
       .from('social_posts')
-      .select('*, products:product_id(name)')
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (platform) q = q.eq('platform', platform);
 
-    const { data, error } = await q;
+    const { data: posts, error } = await q;
     if (error) throw error;
-    return Response.json(data ?? []);
+
+    const allPosts = posts ?? [];
+    const productIds = Array.from(new Set(allPosts.map((p) => (p as Record<string, string>).product_id).filter(Boolean)));
+    let productMap: Record<string, string> = {};
+    if (productIds.length > 0) {
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, name')
+        .in('id', productIds);
+      if (products) productMap = Object.fromEntries(products.map((p) => [p.id, p.name]));
+    }
+
+    return Response.json(allPosts.map((p) => ({
+      ...p,
+      products: (p as Record<string, string>).product_id
+        ? { name: productMap[(p as Record<string, string>).product_id] ?? 'Unknown' }
+        : null,
+    })));
   } catch (err) {
     console.error('admin/social-posts get:', err);
     return Response.json({ message: 'Internal server error' }, { status: 500 });
