@@ -1,23 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback, FormEvent } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer,
 } from 'recharts';
-import { adminAnalyticsApi, productsApi, adminStaffApi } from '@/lib/api';
+import { adminAnalyticsApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import type {
   AnalyticsDashboardData, ProductPerformance,
-  RevenuePoint, StaffPerformance, Product, Staff,
+  RevenuePoint, StaffPerformance,
 } from '@/types';
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 const fmt = (n: number) =>
   `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-
-const todayStr = () => new Date().toISOString().split('T')[0];
 
 function exportCSV(rows: Record<string, unknown>[], filename: string) {
   if (!rows.length) return;
@@ -92,53 +90,13 @@ function EmptyChart({ msg = 'No data yet.' }: { msg?: string }) {
 // ══════════════════════════════════════════════════════════════════════════════
 function OverviewTab() {
   const [data, setData]         = useState<AnalyticsDashboardData | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [staffList, setStaffList] = useState<Staff[]>([]);
   const [loading, setLoading]   = useState(true);
-  const [entry, setEntry]       = useState({
-    product_id: '', staff_id: '', date: todayStr(), sales_count: '', revenue: '',
-  });
-  const [saving, setSaving]     = useState(false);
-  const [feedback, setFeedback] = useState('');
 
   useEffect(() => {
-    Promise.all([
-      adminAnalyticsApi.getDashboard(),
-      productsApi.getAll(),
-      adminStaffApi.getAll(),
-    ])
-      .then(([{ data: d }, { data: p }, { data: s }]) => {
-        setData(d as AnalyticsDashboardData);
-        setProducts(p as Product[]);
-        setStaffList(s as Staff[]);
-      })
+    adminAnalyticsApi.getDashboard()
+      .then(({ data: d }) => setData(d as AnalyticsDashboardData))
       .finally(() => setLoading(false));
   }, []);
-
-  async function handleEntry(e: FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await adminAnalyticsApi.manualEntry({
-        product_id:  entry.product_id  || undefined,
-        staff_id:    entry.staff_id    || undefined,
-        date:        entry.date,
-        sales_count: Number(entry.sales_count),
-        revenue:     Number(entry.revenue),
-      });
-      setFeedback('Entry saved successfully!');
-      setEntry({ product_id: '', staff_id: '', date: todayStr(), sales_count: '', revenue: '' });
-      // Reload dashboard data to reflect new entry
-      const { data: d } = await adminAnalyticsApi.getDashboard();
-      setData(d as AnalyticsDashboardData);
-    } catch (err: unknown) {
-      const apiMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-      setFeedback(apiMsg ?? 'Failed to save entry. Please try again.');
-    } finally {
-      setSaving(false);
-      if (!feedback.includes('SQL')) setTimeout(() => setFeedback(''), 6000);
-    }
-  }
 
   if (loading) return (
     <div className="space-y-6 animate-pulse">
@@ -179,7 +137,7 @@ function OverviewTab() {
           </button>
         </div>
         {data.top_products_30d.length === 0 ? (
-          <EmptyChart msg="No product analytics data yet. Add manual entries below." />
+          <EmptyChart msg="No product analytics data yet." />
         ) : (
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -197,83 +155,6 @@ function OverviewTab() {
         )}
       </div>
 
-      {/* Manual entry form */}
-      <div className="card">
-        <h3 className="font-semibold text-gray-800 mb-4">Manual Sales Entry</h3>
-        {feedback && (
-          <div className={`mb-4 p-3 rounded-xl text-sm whitespace-pre-wrap ${
-            feedback.includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-          }`}>
-            {feedback}
-            {feedback.includes('SQL') && (
-              <button
-                type="button"
-                onClick={() => setFeedback('')}
-                className="block mt-2 text-xs underline opacity-70"
-              >
-                Dismiss
-              </button>
-            )}
-          </div>
-        )}
-        <form onSubmit={handleEntry} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Product (optional)</label>
-            <select
-              className="input-field"
-              value={entry.product_id}
-              onChange={(e) => setEntry((f) => ({ ...f, product_id: e.target.value }))}
-            >
-              <option value="">— none —</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Staff (optional — for performance tracking)</label>
-            <select
-              className="input-field"
-              value={entry.staff_id}
-              onChange={(e) => setEntry((f) => ({ ...f, staff_id: e.target.value }))}
-            >
-              <option value="">— none —</option>
-              {staffList.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Date *</label>
-            <input
-              type="date" required className="input-field"
-              value={entry.date}
-              onChange={(e) => setEntry((f) => ({ ...f, date: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Sales Count *</label>
-            <input
-              type="number" min="0" required className="input-field" placeholder="0"
-              value={entry.sales_count}
-              onChange={(e) => setEntry((f) => ({ ...f, sales_count: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Revenue (₦) *</label>
-            <input
-              type="number" min="0" step="0.01" required className="input-field" placeholder="0.00"
-              value={entry.revenue}
-              onChange={(e) => setEntry((f) => ({ ...f, revenue: e.target.value }))}
-            />
-          </div>
-          <div className="sm:col-span-2 lg:col-span-3 flex items-end">
-            <button type="submit" disabled={saving} className="btn-primary px-8 py-2.5">
-              {saving ? 'Saving…' : 'Add Entry'}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

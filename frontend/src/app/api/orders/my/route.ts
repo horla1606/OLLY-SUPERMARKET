@@ -9,10 +9,19 @@ export async function GET(req: NextRequest) {
   if (authErr) return authErr;
 
   try {
+    // Collect all user IDs that share this email (handles duplicate accounts)
+    const { data: userRows } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', user!.email);
+
+    const userIds = (userRows ?? []).map((r) => (r as { id: string }).id);
+    if (!userIds.includes(user!.id)) userIds.push(user!.id);
+
     const { data, error } = await supabase
       .from('orders')
       .select('*')
-      .eq('customer_id', user!.id)
+      .in('customer_id', userIds)
       .order('created_at', { ascending: false });
 
     if (error) throw error;

@@ -60,16 +60,24 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Step 4: Fetch staff names from the staff table
-    const staffIds = Array.from(smap.keys());
-    if (staffIds.length > 0) {
-      const { data: staffRows } = await supabase
-        .from('staff')
-        .select('id, name, email')
-        .in('id', staffIds);
-      for (const s of staffRows ?? []) {
-        const entry = smap.get(s.id as string);
-        if (entry) { entry.name = s.name as string; entry.email = s.email as string; }
+    // Step 4: Fetch ALL staff — resolve names and add any with zero attribution
+    const { data: allStaff } = await supabase
+      .from('staff')
+      .select('id, name, email');
+
+    for (const s of allStaff ?? []) {
+      const entry = smap.get(s.id as string);
+      if (entry) {
+        entry.name  = s.name as string;
+        entry.email = (s.email ?? '') as string;
+      } else {
+        smap.set(s.id as string, {
+          staff_id:    s.id as string,
+          name:        s.name as string,
+          email:       (s.email ?? '') as string,
+          revenue:     0,
+          sales_count: 0,
+        });
       }
     }
 

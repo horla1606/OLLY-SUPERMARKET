@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { ordersApi, cartApi, messagesApi } from '@/lib/api';
-import type { Order, Cart, Message } from '@/types';
+import { ordersApi, cartApi } from '@/lib/api';
+import type { Order, Cart } from '@/types';
 
-type Tab = 'orders' | 'cart' | 'messages';
+type Tab = 'orders' | 'cart';
 
 const STATUS_STEPS = ['pending', 'confirmed', 'ready', 'completed'];
 
@@ -17,13 +17,11 @@ export default function CustomerDashboardPage() {
   const [tab, setTab]         = useState<Tab>('orders');
   const [orders, setOrders]   = useState<Order[]>([]);
   const [cart, setCart]       = useState<Cart | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [msgContent, setMsgContent] = useState('');
-  const [msgType, setMsgType]       = useState('inquiry');
   const [loading, setLoading]       = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [feedback, setFeedback]     = useState('');
   const [ordersError, setOrdersError] = useState('');
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -89,15 +87,12 @@ export default function CustomerDashboardPage() {
       return;
     }
 
-    // Cart and messages tabs
+    // Cart tab
     setLoading(true);
     try {
       if (t === 'cart') {
         const { data } = await cartApi.get();
         setCart(data as Cart);
-      } else if (t === 'messages') {
-        const { data } = await messagesApi.getMyMessages();
-        setMessages(data as Message[]);
       }
     } catch (err) {
       const msg = (err as { response?: { data?: { message?: string } } })
@@ -108,16 +103,21 @@ export default function CustomerDashboardPage() {
     }
   }
 
-  async function sendMessage() {
-    if (!msgContent.trim()) return;
+  async function cancelOrder(orderId: string) {
+    setCancellingId(orderId);
     try {
-      await messagesApi.send({ content: msgContent, type: msgType });
-      setMsgContent('');
-      setFeedback('Message sent successfully!');
-      loadTab('messages');
-      setTimeout(() => setFeedback(''), 3000);
+      const { data } = await ordersApi.cancel(orderId);
+      const updated = data as Order;
+      setOrders((prev) => {
+        const next = prev.map((o) => o.id === orderId ? { ...o, status: updated.status } : o);
+        try { localStorage.setItem('olly_recent_orders', JSON.stringify(next)); } catch { /* ignore */ }
+        return next;
+      });
     } catch {
-      setFeedback('Failed to send message. Please try again.');
+      setFeedback('Could not cancel order. Please try again.');
+      setTimeout(() => setFeedback(''), 3000);
+    } finally {
+      setCancellingId(null);
     }
   }
 
@@ -139,7 +139,7 @@ export default function CustomerDashboardPage() {
         </div>
         <div className="flex items-center gap-4">
           <Link href="/shop" className="text-white/80 hover:text-white text-sm">Shop</Link>
-          <Link href="/support" className="text-white/80 hover:text-white text-sm hidden sm:block">Support</Link>
+          <a href="https://wa.me/2349012037678" target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white text-sm hidden sm:block">Support</a>
           <Link href="/dashboard/profile" className="text-white/80 hover:text-white text-sm">Profile</Link>
           <button onClick={logout} className="text-white/70 hover:text-white text-sm">Sign Out</button>
         </div>
@@ -148,7 +148,7 @@ export default function CustomerDashboardPage() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Tabs */}
         <div className="flex gap-2 mb-8">
-          {(['orders', 'cart', 'messages'] as Tab[]).map((t) => (
+          {(['orders', 'cart'] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -159,6 +159,14 @@ export default function CustomerDashboardPage() {
               {t}
             </button>
           ))}
+          <a
+            href="https://wa.me/2349012037678"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 rounded-xl text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition-colors"
+          >
+            WhatsApp Support
+          </a>
         </div>
 
         {loading && <div className="text-center py-20 text-gray-400">Loading…</div>}
@@ -226,6 +234,17 @@ export default function CustomerDashboardPage() {
                     </span>
                     <span className="font-bold text-secondary">₦{Number(order.total_amount).toFixed(2)}</span>
                   </div>
+                  {!['ready', 'completed', 'cancelled'].includes(order.status) && (
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        onClick={() => cancelOrder(order.id)}
+                        disabled={cancellingId === order.id}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                      >
+                        {cancellingId === order.id ? 'Cancelling…' : 'Cancel Order'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -267,73 +286,8 @@ export default function CustomerDashboardPage() {
           </div>
         )}
 
-        {/* Messages */}
-        {!loading && tab === 'messages' && (
-          <div className="space-y-6">
-            {/* Send message form */}
-            <div className="card">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-800">Send a Message</h3>
-                <button
-                  onClick={() => loadTab('messages')}
-                  className="text-xs text-primary hover:underline"
-                >
-                  ↻ Refresh
-                </button>
-              </div>
-              {feedback && (
-                <div className={`mb-3 p-3 rounded-xl text-sm ${
-                  feedback.includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-                }`}>
-                  {feedback}
-                </div>
-              )}
-              <select
-                className="input-field mb-3"
-                value={msgType}
-                onChange={(e) => setMsgType(e.target.value)}
-              >
-                <option value="inquiry">Inquiry</option>
-                <option value="complaint">Complaint</option>
-                <option value="feedback">Feedback</option>
-                <option value="support">Support</option>
-              </select>
-              <textarea
-                className="input-field min-h-[100px] resize-none"
-                placeholder="Type your message…"
-                value={msgContent}
-                onChange={(e) => setMsgContent(e.target.value)}
-              />
-              <button onClick={sendMessage} className="btn-primary mt-3 px-6 py-2">
-                Send Message
-              </button>
-            </div>
-
-            {/* Message history */}
-            {messages.map((m) => (
-              <div key={m.id} className={`card ${m.status === 'replied' ? 'border-l-4 border-primary' : ''}`}>
-                <div className="flex justify-between items-start">
-                  <p className="text-sm text-gray-800">{m.content}</p>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ml-3 shrink-0 ${
-                    m.status === 'replied' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'
-                  }`}>
-                    {m.status}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-400 mt-1">{new Date(m.created_at).toLocaleString()}</p>
-
-                {m.reply && (
-                  <div className="mt-3 pt-3 border-t border-neutral-dark bg-primary/5 rounded-xl p-3">
-                    <p className="text-xs font-semibold text-primary mb-1">Reply from OLLY Support</p>
-                    <p className="text-sm text-gray-700">{m.reply}</p>
-                    {m.replied_at && (
-                      <p className="text-xs text-gray-400 mt-1">{new Date(m.replied_at).toLocaleString()}</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+        {feedback && (
+          <div className="p-3 mb-4 rounded-xl text-sm bg-red-50 text-red-700">{feedback}</div>
         )}
       </div>
     </div>

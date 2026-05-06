@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { adminMessagingApi, adminSocialApi, productsApi } from '@/lib/api';
 import {
-  MessageWithCustomer,
   SocialPost,
   Notification,
   Product,
@@ -43,231 +42,6 @@ const PLATFORM_ICONS: Record<SocialPlatform, string> = {
   instagram: '📷',
   twitter:   '🐦',
 };
-
-// ─── Support Tickets Tab ──────────────────────────────────────────────────────
-function TicketsTab() {
-  const [tickets, setTickets]         = useState<MessageWithCustomer[]>([]);
-  const [selected, setSelected]       = useState<MessageWithCustomer | null>(null);
-  const [reply, setReply]             = useState('');
-  const [generating, setGenerating]   = useState(false);
-  const [sending, setSending]         = useState(false);
-  const [filterStatus, setFilter]     = useState('all');
-  const [error, setError]             = useState('');
-  const [success, setSuccess]         = useState('');
-  const [loading, setLoading]         = useState(true);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await adminMessagingApi.getMessages();
-      setTickets(res.data as MessageWithCustomer[]);
-    } catch {
-      setError('Failed to load tickets');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const selectTicket = async (t: MessageWithCustomer) => {
-    setSelected(t);
-    setReply('');
-    setError('');
-    setSuccess('');
-    if (t.status === 'unread') {
-      try {
-        await adminMessagingApi.updateMessageStatus(t.id, 'read');
-        setTickets(prev => prev.map(x => x.id === t.id ? { ...x, status: 'read' } : x));
-      } catch { /* best-effort */ }
-    }
-  };
-
-  const handleGenerate = async () => {
-    if (!selected) return;
-    setGenerating(true);
-    setError('');
-    try {
-      const res = await adminMessagingApi.generateMessage(
-        `Write a professional reply to this customer ${selected.type} message: "${selected.content}"`
-      );
-      setReply((res.data as { text: string }).text);
-    } catch {
-      setError('Failed to generate reply');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const handleSend = async () => {
-    if (!selected || !reply.trim()) return;
-    setSending(true);
-    setError('');
-    const sentReply = reply.trim();
-    try {
-      await adminMessagingApi.replyToMessage(selected.id, sentReply);
-      setReply('');
-      setSuccess('Reply sent successfully');
-      setTickets(prev => prev.map(x =>
-        x.id === selected.id ? { ...x, status: 'replied', reply: sentReply } : x
-      ));
-      setSelected(prev => prev ? { ...prev, status: 'replied', reply: sentReply } : null);
-    } catch {
-      setError('Failed to send reply. Check that your messages table has reply and replied_at columns.');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const handleClose = async (id: string) => {
-    try {
-      await adminMessagingApi.updateMessageStatus(id, 'closed');
-      setTickets(prev => prev.map(x => x.id === id ? { ...x, status: 'closed' } : x));
-      if (selected?.id === id) setSelected(prev => prev ? { ...prev, status: 'closed' } : null);
-    } catch {
-      setError('Failed to close ticket');
-    }
-  };
-
-  const filtered = filterStatus === 'all'
-    ? tickets
-    : tickets.filter(t => t.status === filterStatus);
-
-  return (
-    <div className="flex gap-4 h-[calc(100vh-220px)]">
-      {/* Ticket list */}
-      <div className="w-80 flex-shrink-0 flex flex-col">
-        <div className="mb-3 flex gap-2">
-          <select
-            value={filterStatus}
-            onChange={e => setFilter(e.target.value)}
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            <option value="all">All tickets</option>
-            <option value="unread">Unread</option>
-            <option value="read">Read</option>
-            <option value="replied">Replied</option>
-            <option value="closed">Closed</option>
-          </select>
-          <button
-            onClick={load}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-xs text-gray-500 hover:border-green-400 hover:text-green-600 whitespace-nowrap"
-            title="Refresh tickets"
-          >
-            ↻ Refresh
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto space-y-2">
-          {loading && <p className="text-sm text-gray-500 text-center py-8">Loading…</p>}
-          {!loading && filtered.length === 0 && (
-            <p className="text-sm text-gray-500 text-center py-8">No tickets found</p>
-          )}
-          {filtered.map(t => (
-            <button
-              key={t.id}
-              onClick={() => selectTicket(t)}
-              className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                selected?.id === t.id
-                  ? 'border-green-500 bg-green-50'
-                  : 'border-gray-200 bg-white hover:border-green-300'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <span className="font-medium text-sm truncate">{t.users?.name ?? 'Customer'}</span>
-                <Badge status={t.status} />
-              </div>
-              <div className="flex items-center gap-2 mb-1">
-                <Badge status={t.type} />
-                <span className="text-xs text-gray-400">{fmt(t.created_at)}</span>
-              </div>
-              <p className="text-xs text-gray-600 line-clamp-2">{t.content}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Ticket detail + reply */}
-      <div className="flex-1 flex flex-col">
-        {!selected ? (
-          <div className="flex-1 flex items-center justify-center text-gray-400">
-            <div className="text-center">
-              <div className="text-4xl mb-2">✉️</div>
-              <p>Select a ticket to view and reply</p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-col bg-white rounded-xl border border-gray-200 p-5 overflow-y-auto">
-            {/* Header */}
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-semibold text-gray-900">{selected.users?.name ?? 'Customer'}</h3>
-                  <Badge status={selected.status} />
-                  <Badge status={selected.type} />
-                </div>
-                <p className="text-xs text-gray-500">{selected.users?.email} • {fmt(selected.created_at)}</p>
-              </div>
-              {selected.status !== 'closed' && (
-                <button
-                  onClick={() => handleClose(selected.id)}
-                  className="text-xs text-gray-500 hover:text-gray-700 underline"
-                >
-                  Close ticket
-                </button>
-              )}
-            </div>
-
-            {/* Original message */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Customer Message</p>
-              <p className="text-sm text-gray-800 whitespace-pre-wrap">{selected.content}</p>
-            </div>
-
-            {/* Previous reply */}
-            {selected.reply && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <p className="text-xs font-medium text-green-700 uppercase tracking-wide mb-2">
-                  Reply sent {selected.replied_at ? fmt(selected.replied_at) : ''}
-                </p>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">{selected.reply}</p>
-              </div>
-            )}
-
-            {/* Reply form */}
-            {selected.status !== 'closed' && (
-              <div className="mt-auto">
-                {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
-                {success && <p className="text-sm text-green-600 mb-2">{success}</p>}
-                <textarea
-                  value={reply}
-                  onChange={e => setReply(e.target.value)}
-                  rows={5}
-                  placeholder="Type your reply…"
-                  className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none mb-3"
-                />
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleGenerate}
-                    disabled={generating}
-                    className="flex items-center gap-2 px-4 py-2 border border-green-600 text-green-700 rounded-lg text-sm hover:bg-green-50 disabled:opacity-50"
-                  >
-                    {generating ? 'Generating…' : '✨ AI Draft'}
-                  </button>
-                  <button
-                    onClick={handleSend}
-                    disabled={sending || !reply.trim()}
-                    className="flex-1 bg-green-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {sending ? 'Sending…' : 'Send Reply'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ─── Notifications Tab ────────────────────────────────────────────────────────
 function NotificationsTab() {
@@ -710,17 +484,16 @@ function SocialTab() {
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-const TABS = ['tickets', 'notifications', 'social'] as const;
+const TABS = ['notifications', 'social'] as const;
 type Tab = typeof TABS[number];
 
 const TAB_LABELS: Record<Tab, string> = {
-  tickets:       '🎫 Support Tickets',
   notifications: '📧 Notifications',
   social:        '📱 Social Media',
 };
 
 export default function CommunicationsPage() {
-  const [tab, setTab] = useState<Tab>('tickets');
+  const [tab, setTab] = useState<Tab>('notifications');
 
   return (
     <ProtectedRoute requiredRole="manager">
@@ -728,7 +501,7 @@ export default function CommunicationsPage() {
         {/* Page title */}
         <div className="mb-6">
           <h1 className="text-xl font-bold text-gray-900">Communications</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Support tickets, customer notifications, and social media</p>
+          <p className="text-sm text-gray-500 mt-0.5">Customer notifications and social media posts</p>
         </div>
 
         {/* Tabs */}
@@ -749,7 +522,6 @@ export default function CommunicationsPage() {
         </div>
 
         {/* Content */}
-        {tab === 'tickets'       && <TicketsTab />}
         {tab === 'notifications' && <NotificationsTab />}
         {tab === 'social'        && <SocialTab />}
       </div>

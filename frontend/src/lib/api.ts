@@ -71,6 +71,8 @@ export const ordersApi = {
     api.patch(`/api/orders/${id}/status`, { status }),
   verifyPickup: (pickup_code: string) =>
     api.post('/api/orders/verify-pickup', { pickup_code }),
+  cancel: (id: string) =>
+    api.patch(`/api/orders/${id}/cancel`),
 };
 
 // ─── Cart ────────────────────────────────────────────────────────────────────
