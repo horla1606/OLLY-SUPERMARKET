@@ -71,7 +71,7 @@ function TicketsTab() {
 
   const selectTicket = async (t: MessageWithCustomer) => {
     setSelected(t);
-    setReply(t.reply ?? '');
+    setReply('');
     setError('');
     setSuccess('');
     if (t.status === 'unread') {
@@ -102,15 +102,17 @@ function TicketsTab() {
     if (!selected || !reply.trim()) return;
     setSending(true);
     setError('');
+    const sentReply = reply.trim();
     try {
-      await adminMessagingApi.replyToMessage(selected.id, reply.trim());
+      await adminMessagingApi.replyToMessage(selected.id, sentReply);
+      setReply('');
       setSuccess('Reply sent successfully');
       setTickets(prev => prev.map(x =>
-        x.id === selected.id ? { ...x, status: 'replied', reply: reply.trim() } : x
+        x.id === selected.id ? { ...x, status: 'replied', reply: sentReply } : x
       ));
-      setSelected(prev => prev ? { ...prev, status: 'replied', reply: reply.trim() } : null);
+      setSelected(prev => prev ? { ...prev, status: 'replied', reply: sentReply } : null);
     } catch {
-      setError('Failed to send reply');
+      setError('Failed to send reply. Check that your messages table has reply and replied_at columns.');
     } finally {
       setSending(false);
     }
@@ -134,11 +136,11 @@ function TicketsTab() {
     <div className="flex gap-4 h-[calc(100vh-220px)]">
       {/* Ticket list */}
       <div className="w-80 flex-shrink-0 flex flex-col">
-        <div className="mb-3">
+        <div className="mb-3 flex gap-2">
           <select
             value={filterStatus}
             onChange={e => setFilter(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             <option value="all">All tickets</option>
             <option value="unread">Unread</option>
@@ -146,6 +148,13 @@ function TicketsTab() {
             <option value="replied">Replied</option>
             <option value="closed">Closed</option>
           </select>
+          <button
+            onClick={load}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-xs text-gray-500 hover:border-green-400 hover:text-green-600 whitespace-nowrap"
+            title="Refresh tickets"
+          >
+            ↻ Refresh
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto space-y-2">
           {loading && <p className="text-sm text-gray-500 text-center py-8">Loading…</p>}

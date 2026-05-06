@@ -1,7 +1,18 @@
-﻿import { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase-server';
 import { authenticate, guard } from '@/lib/auth-server';
 export const dynamic = 'force-dynamic';
+
+const MISSING_TABLE_SQL = `
+CREATE TABLE analytics (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  product_id uuid,
+  staff_id uuid,
+  date date NOT NULL,
+  sales_count integer DEFAULT 0,
+  revenue numeric(10,2) DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);`.trim();
 
 export async function POST(req: NextRequest) {
   const user = await authenticate(req);
@@ -18,16 +29,25 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabase
       .from('analytics')
       .insert({
-        product_id: product_id || null,
-        staff_id: staff_id || null,
-        date: String(date),
+        product_id:  product_id || null,
+        staff_id:    staff_id   || null,
+        date:        String(date),
         sales_count: Number(sales_count),
-        revenue: Number(revenue),
+        revenue:     Number(revenue),
       })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      const msg = (error as { message?: string }).message ?? '';
+      if (msg.includes('does not exist') || msg.includes('relation') || msg.includes('42P01')) {
+        return Response.json({
+          message: `The analytics table does not exist in your Supabase database. Run this SQL in your Supabase SQL editor to create it:\n\n${MISSING_TABLE_SQL}`,
+        }, { status: 422 });
+      }
+      throw error;
+    }
+
     return Response.json(data, { status: 201 });
   } catch (err) {
     console.error('analytics/manual-entry:', err);

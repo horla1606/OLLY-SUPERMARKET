@@ -409,15 +409,25 @@ function DutyTab({ staff }: { staff: Staff[] }) {
 
         {onDutyStaff.length > 0 && (
           <ul className="space-y-2">
-            {onDutyStaff.map((d, i) => (
-              <li key={i} className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-100 rounded-xl">
-                <span className="text-green-600 font-bold text-lg">✓</span>
-                <div>
-                  <p className="font-medium text-gray-800 text-sm">{d.staff?.name ?? 'Unknown'}</p>
-                  {d.staff?.email && <p className="text-xs text-gray-400">{d.staff.email}</p>}
-                </div>
-              </li>
-            ))}
+            {onDutyStaff.map((d, i) => {
+              const s = d.staff as { name?: string; email?: string } | null | undefined;
+              return (
+                <li key={i} className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-100 rounded-xl">
+                  <span className="text-green-600 font-bold text-lg">✓</span>
+                  <div>
+                    <p className="font-medium text-gray-800 text-sm">
+                      {s?.name ?? <span className="text-gray-400 italic">Unknown staff</span>}
+                    </p>
+                    {s?.email && <p className="text-xs text-gray-400">{s.email}</p>}
+                    {!s?.name && (
+                      <p className="text-xs text-red-400 mt-0.5">
+                        ID: {(d as Record<string, string>).staff_id ?? '—'} — no matching staff record
+                      </p>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
 

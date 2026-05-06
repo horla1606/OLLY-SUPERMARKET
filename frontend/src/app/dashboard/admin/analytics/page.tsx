@@ -131,11 +131,12 @@ function OverviewTab() {
       // Reload dashboard data to reflect new entry
       const { data: d } = await adminAnalyticsApi.getDashboard();
       setData(d as AnalyticsDashboardData);
-    } catch {
-      setFeedback('Failed to save entry. Please try again.');
+    } catch (err: unknown) {
+      const apiMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setFeedback(apiMsg ?? 'Failed to save entry. Please try again.');
     } finally {
       setSaving(false);
-      setTimeout(() => setFeedback(''), 4000);
+      if (!feedback.includes('SQL')) setTimeout(() => setFeedback(''), 6000);
     }
   }
 
@@ -200,10 +201,19 @@ function OverviewTab() {
       <div className="card">
         <h3 className="font-semibold text-gray-800 mb-4">Manual Sales Entry</h3>
         {feedback && (
-          <div className={`mb-4 p-3 rounded-xl text-sm ${
+          <div className={`mb-4 p-3 rounded-xl text-sm whitespace-pre-wrap ${
             feedback.includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
           }`}>
             {feedback}
+            {feedback.includes('SQL') && (
+              <button
+                type="button"
+                onClick={() => setFeedback('')}
+                className="block mt-2 text-xs underline opacity-70"
+              >
+                Dismiss
+              </button>
+            )}
           </div>
         )}
         <form onSubmit={handleEntry} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

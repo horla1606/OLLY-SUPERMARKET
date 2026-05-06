@@ -21,6 +21,7 @@ export default function CustomerDashboardPage() {
   const [msgContent, setMsgContent] = useState('');
   const [msgType, setMsgType]       = useState('inquiry');
   const [loading, setLoading]       = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [feedback, setFeedback]     = useState('');
   const [ordersError, setOrdersError] = useState('');
 
@@ -34,44 +35,38 @@ export default function CustomerDashboardPage() {
   }, [tab, isAuthenticated, authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadTab(t: Tab, force = false) {
-    setLoading(true);
     setOrdersError('');
-    try {
-      if (t === 'orders') {
-        if (force) {
-          // Hard refresh: wipe cache so we get fresh data from API
-          try { localStorage.removeItem('olly_recent_orders'); } catch { /* ignore */ }
-        } else {
-          // Soft load: show cached orders immediately while API fetches
-          try {
-            const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
-            if (cached.length > 0) setOrders(cached);
-          } catch { /* ignore */ }
-        }
 
+    if (t === 'orders') {
+      // Show cached orders immediately so the screen is never blank
+      try {
+        const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
+        if (cached.length > 0) setOrders(cached);
+      } catch { /* ignore */ }
+
+      setRefreshing(true);
+      try {
         const { data } = await ordersApi.getMyOrders();
-        if (Array.isArray(data) && data.length > 0) {
-          setOrders(data as Order[]);
-          try { localStorage.setItem('olly_recent_orders', JSON.stringify(data)); } catch { /* ignore */ }
-        } else if (!force) {
-          // Only fall back to cache on non-forced load
+        const apiOrders = Array.isArray(data) ? (data as Order[]) : [];
+
+        if (force) {
+          // Force refresh: trust the API completely
+          setOrders(apiOrders);
+          try { localStorage.setItem('olly_recent_orders', JSON.stringify(apiOrders)); } catch { /* ignore */ }
+        } else {
+          // Merge API results with cache — keep locally-placed orders the API might not have yet
           try {
             const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
-            setOrders(cached);
-          } catch { /* ignore */ }
-        } else {
-          // Force refresh returned empty — trust the API
-          setOrders([]);
+            const apiIds = new Set(apiOrders.map((o) => o.id));
+            const merged = [...apiOrders, ...cached.filter((o) => !apiIds.has(o.id))];
+            setOrders(merged);
+            try { localStorage.setItem('olly_recent_orders', JSON.stringify(merged)); } catch { /* ignore */ }
+          } catch {
+            if (apiOrders.length > 0) setOrders(apiOrders);
+          }
         }
-      } else if (t === 'cart') {
-        const { data } = await cartApi.get();
-        setCart(data as Cart);
-      } else if (t === 'messages') {
-        const { data } = await messagesApi.getMyMessages();
-        setMessages(data as Message[]);
-      }
-    } catch {
-      if (t === 'orders') {
+      } catch {
+        // API failed — keep showing cached orders, only show error if nothing to display
         try {
           const cached = JSON.parse(localStorage.getItem('olly_recent_orders') ?? '[]') as Order[];
           setOrders(cached);
@@ -79,8 +74,23 @@ export default function CustomerDashboardPage() {
         } catch {
           setOrdersError('Could not load orders. Tap Refresh to try again.');
         }
+      } finally {
+        setRefreshing(false);
       }
-    } finally {
+      return;
+    }
+
+    // Cart and messages tabs
+    setLoading(true);
+    try {
+      if (t === 'cart') {
+        const { data } = await cartApi.get();
+        setCart(data as Cart);
+      } else if (t === 'messages') {
+        const { data } = await messagesApi.getMyMessages();
+        setMessages(data as Message[]);
+      }
+    } catch { /* ignore */ } finally {
       setLoading(false);
     }
   }
@@ -141,9 +151,10 @@ export default function CustomerDashboardPage() {
         {loading && <div className="text-center py-20 text-gray-400">Loading…</div>}
 
         {/* Orders */}
-        {!loading && tab === 'orders' && (
+        {tab === 'orders' && (
           <div className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex items-center justify-end gap-3">
+              {refreshing && <span className="text-xs text-gray-400">Refreshing…</span>}
               <button
                 onClick={() => loadTab('orders', true)}
                 className="text-xs text-primary hover:underline"
@@ -248,7 +259,15 @@ export default function CustomerDashboardPage() {
           <div className="space-y-6">
             {/* Send message form */}
             <div className="card">
-              <h3 className="font-semibold text-gray-800 mb-4">Send a Message</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-gray-800">Send a Message</h3>
+                <button
+                  onClick={() => loadTab('messages')}
+                  className="text-xs text-primary hover:underline"
+                >
+                  ↻ Refresh
+                </button>
+              </div>
               {feedback && (
                 <div className={`mb-3 p-3 rounded-xl text-sm ${
                   feedback.includes('success') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
