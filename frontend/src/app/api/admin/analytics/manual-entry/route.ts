@@ -38,19 +38,20 @@ export async function POST(req: NextRequest) {
       .select()
       .single();
 
-    // Any error here almost certainly means the analytics table doesn't exist.
-    // Return a helpful message with the SQL to create it.
     if (error) {
+      console.error('analytics/manual-entry insert error:', error);
+      const isTableMissing = error.code === '42P01' || (error.message ?? '').includes('does not exist');
       return Response.json({
-        message: `The analytics table does not exist in your Supabase database.\n\n${CREATE_TABLE_SQL}`,
+        message: isTableMissing
+          ? `The analytics table does not exist in your Supabase database.\n\n${CREATE_TABLE_SQL}`
+          : `Insert failed: ${error.message} (code: ${error.code})`,
       }, { status: 422 });
     }
 
     return Response.json(data, { status: 201 });
   } catch (err) {
     console.error('analytics/manual-entry:', err);
-    return Response.json({
-      message: `Failed to save entry. The analytics table may not exist.\n\n${CREATE_TABLE_SQL}`,
-    }, { status: 500 });
+    const msg = (err as { message?: string })?.message ?? String(err);
+    return Response.json({ message: `Failed to save entry: ${msg}` }, { status: 500 });
   }
 }

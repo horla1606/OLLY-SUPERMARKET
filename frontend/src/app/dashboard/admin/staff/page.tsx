@@ -290,6 +290,13 @@ function DutyTab({ staff }: { staff: Staff[] }) {
     );
     try {
       await adminStaffApi.assignDuty(selectedId, dateStr, action);
+      // Auto-refresh "Who's On Duty" if it's showing the toggled date
+      if (checked && checkDate === dateStr) {
+        try {
+          const { data } = await adminStaffApi.getDutyByDate(checkDate);
+          setOnDutyStaff(data as Array<{ staff_id?: string; staff?: { name: string; email?: string } }>);
+        } catch { /* ignore — user can re-check manually */ }
+      }
     } catch (err: unknown) {
       await loadDuties(); // revert optimistic update
       const msg = (err as { response?: { data?: { message?: string } } })
@@ -419,6 +426,26 @@ function DutyTab({ staff }: { staff: Staff[] }) {
           <div className="text-center py-8">
             <p className="text-2xl mb-2">📭</p>
             <p className="text-sm text-gray-400">No staff assigned for this date.</p>
+          </div>
+        )}
+
+        {checked && onDutyStaff.length > 0 && (
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={async () => {
+                if (!confirm(`Remove ALL staff from duty on ${checkDate}?`)) return;
+                for (const d of onDutyStaff) {
+                  if (d.staff_id) {
+                    try { await adminStaffApi.assignDuty(d.staff_id, checkDate, 'remove'); } catch { /* ignore */ }
+                  }
+                }
+                setOnDutyStaff([]);
+                if (selectedId) await loadDuties();
+              }}
+              className="text-xs text-red-500 hover:underline"
+            >
+              Clear all for this date
+            </button>
           </div>
         )}
 
