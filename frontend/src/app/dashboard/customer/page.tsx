@@ -134,22 +134,22 @@ export default function CustomerDashboardPage() {
   return (
     <div className="min-h-screen bg-neutral">
       {/* Header */}
-      <header className="bg-secondary text-white px-6 py-4 flex items-center justify-between">
+      <header className="bg-secondary text-white px-4 py-3 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">My Account</h1>
-          <p className="text-white/60 text-sm">Welcome back, {user?.name ?? 'Customer'}</p>
+          <h1 className="text-base font-bold sm:text-xl">My Account</h1>
+          <p className="text-white/60 text-xs sm:text-sm">Welcome, {user?.name ?? 'Customer'}</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <Link href="/shop" className="text-white/80 hover:text-white text-sm">Shop</Link>
           <a href="https://wa.me/2349012037678" target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white text-sm hidden sm:block">Support</a>
-          <Link href="/dashboard/profile" className="text-white/80 hover:text-white text-sm">Profile</Link>
+          <Link href="/dashboard/profile" className="text-white/80 hover:text-white text-sm hidden sm:block">Profile</Link>
           <button onClick={logout} className="text-white/70 hover:text-white text-sm">Sign Out</button>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4 py-6">
         {/* Tabs */}
-        <div className="flex gap-2 mb-8">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
           {(['orders', 'cart'] as Tab[]).map((t) => (
             <button
               key={t}

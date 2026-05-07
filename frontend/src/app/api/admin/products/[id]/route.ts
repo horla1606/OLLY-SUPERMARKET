@@ -48,9 +48,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         const url = await uploadImage(imageFile);
         if (url) updates.image_url = url;
       }
+
+      const description = formData.get('description') as string | null;
+      if (description !== null) updates.description = description.trim() || null;
+
+      const galleryExisting: string[] = JSON.parse((formData.get('gallery_existing') as string) ?? '[]');
+      const galleryCount = parseInt((formData.get('gallery_count') as string) ?? '0', 10);
+      const newGalleryUrls: string[] = [];
+      for (let i = 0; i < galleryCount; i++) {
+        const gf = formData.get(`gallery_file_${i}`) as File | null;
+        if (gf && gf.size > 0) { const u = await uploadImage(gf); if (u) newGalleryUrls.push(u); }
+      }
+      const gallery_images = [...galleryExisting, ...newGalleryUrls].slice(0, 4);
+      updates.gallery_images = gallery_images.length ? gallery_images : null;
     } else {
       const body = await req.json() as Record<string, unknown>;
-      const allowed = ['name', 'category', 'price', 'stock', 'expiry_date', 'image_url'];
+      const allowed = ['name', 'category', 'price', 'stock', 'expiry_date', 'image_url', 'description', 'gallery_images'];
       for (const [k, v] of Object.entries(body)) {
         if (allowed.includes(k)) updates[k] = v;
       }

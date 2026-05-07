@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const dest = ['manager', 'admin', 'staff'].includes(data.user.role)
       ? '/dashboard/admin'
-      : '/dashboard/customer';
+      : '/shop';
     router.push(dest);
   }, [router]);
 
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     auth.setUser(data.user);
     setToken(data.token);
     setUser(data.user);
-    router.push('/dashboard/customer');
+    router.push('/shop');
   }, [router]);
 
   const logout = useCallback(async () => {

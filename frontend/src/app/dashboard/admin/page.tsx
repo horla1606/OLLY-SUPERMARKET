@@ -401,18 +401,29 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     price:       product?.price.toString() ?? '',
     stock:       product?.stock.toString() ?? '0',
     expiry_date: product?.expiry_date ?? '',
+    description: product?.description ?? '',
   });
-  const [imageFile, setImageFile]     = useState<File | null>(null);
+  const [imageFile, setImageFile]       = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(product?.image_url ?? null);
-  const [saving, setSaving]           = useState(false);
-  const [error, setError]             = useState('');
-  const fileRef                       = useRef<HTMLInputElement>(null);
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+  const [existingGallery, setExistingGallery] = useState<string[]>(product?.gallery_images ?? []);
+  const [saving, setSaving]             = useState(false);
+  const [error, setError]               = useState('');
+  const fileRef                         = useRef<HTMLInputElement>(null);
+  const galleryRef                      = useRef<HTMLInputElement>(null);
 
   function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
+  }
+
+  function handleGalleryChange(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    const remaining = 4 - existingGallery.length - galleryFiles.length;
+    setGalleryFiles((prev) => [...prev, ...files].slice(0, prev.length + remaining));
+    e.target.value = '';
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -422,10 +433,14 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
     try {
       const fd = new FormData();
-      fd.append('name',     form.name);
-      fd.append('category', form.category);
-      fd.append('price',    form.price);
-      fd.append('stock',    form.stock);
+      fd.append('name',        form.name);
+      fd.append('category',    form.category);
+      fd.append('price',       form.price);
+      fd.append('stock',       form.stock);
+      fd.append('description', form.description);
+      fd.append('gallery_existing', JSON.stringify(existingGallery));
+      fd.append('gallery_count',    galleryFiles.length.toString());
+      galleryFiles.forEach((f, i) => fd.append(`gallery_file_${i}`, f));
       if (form.expiry_date) fd.append('expiry_date', form.expiry_date);
       if (imageFile)        fd.append('image', imageFile);
 
@@ -559,6 +574,64 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
               className="input-field"
               value={form.expiry_date}
               onChange={(e) => setForm((f) => ({ ...f, expiry_date: e.target.value }))}
+            />
+          </div>
+
+          {/* Description */}
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <textarea
+              rows={3}
+              className="input-field resize-none"
+              placeholder="Describe the product — freshness, origin, uses, etc."
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            />
+          </div>
+
+          {/* Gallery images */}
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Additional Photos <span className="text-gray-400 font-normal">(optional, up to 4)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {existingGallery.map((url, i) => (
+                <div key={url} className="relative w-16 h-16 rounded-lg overflow-hidden border border-neutral-dark">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setExistingGallery((p) => p.filter((_, j) => j !== i))}
+                    className="absolute top-0 right-0 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-bl"
+                  >✕</button>
+                </div>
+              ))}
+              {galleryFiles.map((file, i) => (
+                <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden border border-primary/30">
+                  <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setGalleryFiles((p) => p.filter((_, j) => j !== i))}
+                    className="absolute top-0 right-0 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-bl"
+                  >✕</button>
+                </div>
+              ))}
+              {existingGallery.length + galleryFiles.length < 4 && (
+                <button
+                  type="button"
+                  onClick={() => galleryRef.current?.click()}
+                  className="w-16 h-16 rounded-lg border-2 border-dashed border-neutral-dark hover:border-primary text-gray-300 hover:text-primary flex items-center justify-center text-2xl transition-colors"
+                >+</button>
+              )}
+            </div>
+            <input
+              ref={galleryRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handleGalleryChange}
             />
           </div>
         </div>

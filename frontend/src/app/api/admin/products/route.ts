@@ -49,6 +49,16 @@ export async function POST(req: NextRequest) {
 
     const image_url = imageFile && imageFile.size > 0 ? await uploadImage(imageFile) : null;
 
+    const description = formData.get('description') as string | null;
+    const galleryExisting: string[] = JSON.parse((formData.get('gallery_existing') as string) ?? '[]');
+    const galleryCount = parseInt((formData.get('gallery_count') as string) ?? '0', 10);
+    const newGalleryUrls: string[] = [];
+    for (let i = 0; i < galleryCount; i++) {
+      const gf = formData.get(`gallery_file_${i}`) as File | null;
+      if (gf && gf.size > 0) { const u = await uploadImage(gf); if (u) newGalleryUrls.push(u); }
+    }
+    const gallery_images = [...galleryExisting, ...newGalleryUrls].slice(0, 4);
+
     const { data, error } = await supabase
       .from('products')
       .insert({
@@ -58,6 +68,8 @@ export async function POST(req: NextRequest) {
         stock: isNaN(parsedStock) ? 0 : parsedStock,
         expiry_date: expiry_date?.trim() || null,
         image_url,
+        description: description?.trim() || null,
+        gallery_images: gallery_images.length ? gallery_images : null,
       })
       .select()
       .single();

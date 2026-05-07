@@ -17,6 +17,8 @@ export interface Product {
   stock: number;
   expiry_date?: string;
   image_url?: string;
+  description?: string;
+  gallery_images?: string[];
   created_at: string;
 }
 

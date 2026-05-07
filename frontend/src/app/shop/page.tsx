@@ -185,12 +185,12 @@ export default function ShopPage() {
         </div>
 
         {/* ── Category pills ────────────────────────────────────────────────── */}
-        <div className="flex gap-2 flex-wrap mb-8">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
           {CATEGORIES.map((c) => (
             <button
               key={c}
               onClick={() => setCategory(c)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium transition-all shrink-0 ${
                 category === c
                   ? 'bg-primary text-white shadow-sm'
                   : 'bg-white text-gray-600 border border-neutral-dark hover:border-primary hover:text-primary'
@@ -272,8 +272,8 @@ function ProductCard({ product, isAdding, inCart, onAdd }: CardProps) {
 
   return (
     <div className="card p-0 overflow-hidden flex flex-col hover:shadow-md transition-shadow group">
-      {/* Image */}
-      <div className="relative h-40 bg-gradient-to-br from-primary-50 to-neutral-dark flex items-center justify-center overflow-hidden">
+      {/* Image — tapping navigates to detail page */}
+      <Link href={`/shop/${product.id}`} className="relative h-40 bg-gradient-to-br from-primary-50 to-neutral-dark flex items-center justify-center overflow-hidden block">
         {product.image_url ? (
           <img
             src={product.image_url}
@@ -288,16 +288,16 @@ function ProductCard({ product, isAdding, inCart, onAdd }: CardProps) {
             {inCart} in cart
           </span>
         )}
-      </div>
+      </Link>
 
       {/* Details */}
-      <div className="p-4 flex flex-col flex-1">
-        <p className="text-xs text-primary font-semibold uppercase tracking-wide mb-1">
+      <div className="p-3 flex flex-col flex-1">
+        <p className="text-xs text-primary font-semibold uppercase tracking-wide mb-0.5">
           {product.category}
         </p>
-        <h3 className="font-semibold text-gray-800 text-sm leading-tight line-clamp-2 flex-1">
+        <Link href={`/shop/${product.id}`} className="font-semibold text-gray-800 text-sm leading-tight line-clamp-2 flex-1 hover:text-primary transition-colors">
           {product.name}
-        </h3>
+        </Link>
         <p className="text-xs text-gray-400 mt-1">
           {isOutOfStock ? (
             <span className="text-red-500">Out of stock</span>
@@ -306,8 +306,8 @@ function ProductCard({ product, isAdding, inCart, onAdd }: CardProps) {
           )}
         </p>
 
-        <div className="flex items-center justify-between mt-3 gap-2">
-          <span className="text-base font-bold text-secondary">₦{product.price.toFixed(2)}</span>
+        <div className="flex items-center justify-between mt-2 gap-2">
+          <span className="text-sm font-bold text-secondary">₦{product.price.toFixed(2)}</span>
           <button
             onClick={onAdd}
             disabled={isOutOfStock || isAdding}
