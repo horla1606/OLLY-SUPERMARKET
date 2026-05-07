@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
         .in('role', ['manager', 'admin']);
       const managerEmails = (managers ?? []).map((m) => m.email).filter(Boolean) as string[];
       if (adminEmail) managerEmails.push(adminEmail);
-      const uniqueEmails = [...new Set(managerEmails)];
+      const uniqueEmails = Array.from(new Set(managerEmails));
 
       if (uniqueEmails.length > 0) {
         const { data: customerData } = await supabase
