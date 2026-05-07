@@ -48,6 +48,64 @@ export function replyEmailHtml(opts: {
   `;
 }
 
+export function newOrderEmailHtml(opts: {
+  pickupCode: string;
+  customerName: string;
+  customerEmail: string;
+  items: Array<{ product_name: string; quantity: number; price: number }>;
+  totalAmount: number;
+  pickupTime: string;
+}): string {
+  const rows = opts.items
+    .map(
+      (i) =>
+        `<tr><td style="padding:6px 8px">${i.product_name}</td>` +
+        `<td style="padding:6px 8px;text-align:center">×${i.quantity}</td>` +
+        `<td style="padding:6px 8px;text-align:right">₦${(i.price * i.quantity).toFixed(2)}</td></tr>`
+    )
+    .join('');
+  return `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+      <h2 style="color:#16a34a">OLLY Supermarket — New Order</h2>
+      <p>A new order has been placed and is awaiting confirmation.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px">
+        <tr style="background:#f3f4f6">
+          <td style="padding:8px;font-weight:bold;width:140px">Pickup Code</td>
+          <td style="padding:8px;font-size:22px;font-weight:900;color:#16a34a;font-family:monospace">${opts.pickupCode}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;font-weight:bold">Customer</td>
+          <td style="padding:8px">${opts.customerName} &lt;${opts.customerEmail}&gt;</td>
+        </tr>
+        <tr style="background:#f3f4f6">
+          <td style="padding:8px;font-weight:bold">Pickup Time</td>
+          <td style="padding:8px">${opts.pickupTime}</td>
+        </tr>
+      </table>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <thead>
+          <tr style="background:#f3f4f6">
+            <th style="padding:8px;text-align:left">Item</th>
+            <th style="padding:8px;text-align:center">Qty</th>
+            <th style="padding:8px;text-align:right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr style="border-top:2px solid #e5e7eb">
+            <td colspan="2" style="padding:8px;font-weight:bold">Total</td>
+            <td style="padding:8px;text-align:right;font-weight:bold;color:#16a34a">₦${opts.totalAmount.toFixed(2)}</td>
+          </tr>
+        </tfoot>
+      </table>
+      <p style="margin-top:16px;font-size:13px;color:#374151">
+        Log in to the admin dashboard to confirm this order.
+      </p>
+      <p style="color:#6b7280;font-size:12px;margin-top:24px">OLLY Supermarket &bull; Fresh &amp; Fast Pickup</p>
+    </div>
+  `;
+}
+
 export function productNotificationHtml(opts: {
   title: string;
   content: string;

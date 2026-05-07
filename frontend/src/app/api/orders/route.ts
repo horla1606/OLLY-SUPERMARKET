@@ -1,6 +1,7 @@
 ﻿import { NextRequest } from 'next/server';
 import { supabase } from '@/lib/supabase-server';
 import { authenticate, guard } from '@/lib/auth-server';
+import { sendEmail, newOrderEmailHtml } from '@/lib/email-server';
 export const dynamic = 'force-dynamic';
 
 function generatePickupCode(): string {
@@ -136,6 +137,43 @@ export async function POST(req: NextRequest) {
       }
     } catch (assignErr) {
       console.error('auto-assign staff after order:', assignErr);
+    }
+
+    // Notify managers by email (best-effort, non-fatal)
+    try {
+      const adminEmail = process.env.ADMIN_NOTIFY_EMAIL;
+      const { data: managers } = await supabase
+        .from('users')
+        .select('email')
+        .in('role', ['manager', 'admin']);
+      const managerEmails = (managers ?? []).map((m) => m.email).filter(Boolean) as string[];
+      if (adminEmail) managerEmails.push(adminEmail);
+      const uniqueEmails = [...new Set(managerEmails)];
+
+      if (uniqueEmails.length > 0) {
+        const { data: customerData } = await supabase
+          .from('users')
+          .select('name, email')
+          .eq('id', user!.id)
+          .single();
+        await sendEmail({
+          to: uniqueEmails,
+          subject: `New Order #${pickup_code} — ${customerData?.name ?? 'Customer'}`,
+          html: newOrderEmailHtml({
+            pickupCode: pickup_code,
+            customerName: customerData?.name ?? 'Customer',
+            customerEmail: customerData?.email ?? '',
+            items: orderItems,
+            totalAmount: Math.round(total_amount * 100) / 100,
+            pickupTime: new Date(pickup_time).toLocaleString('en-NG', {
+              weekday: 'short', month: 'short', day: 'numeric',
+              hour: '2-digit', minute: '2-digit',
+            }),
+          }),
+        });
+      }
+    } catch (notifyErr) {
+      console.error('notify managers after order:', notifyErr);
     }
 
     return Response.json(order, { status: 201 });
