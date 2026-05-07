@@ -182,7 +182,9 @@ export const adminMessagingApi = {
     api.post('/api/admin/generate-message', { prompt, context }),
   getNotifications: () =>
     api.get('/api/admin/notifications'),
-  sendProductNotification: (data: { title: string; content: string; product_id?: string }) =>
+  getNotificationCustomers: () =>
+    api.get('/api/admin/notifications/product'),
+  sendProductNotification: (data: { title: string; content: string; product_id?: string; emails?: string[] }) =>
     api.post('/api/admin/notifications/product', data),
 };
 
