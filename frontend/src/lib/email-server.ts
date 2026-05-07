@@ -18,11 +18,15 @@ export async function sendEmail(opts: {
   to: string | string[];
   subject: string;
   html: string;
+  bcc?: string | string[];
 }): Promise<void> {
   if (!transporter) return;
   await transporter.sendMail({
     from: EMAIL_FROM || EMAIL_USER,
     to: Array.isArray(opts.to) ? opts.to.join(',') : opts.to,
+    bcc: opts.bcc
+      ? Array.isArray(opts.bcc) ? opts.bcc.join(',') : opts.bcc
+      : undefined,
     subject: opts.subject,
     html: opts.html,
   });

@@ -4,6 +4,8 @@ import { authenticate, guard } from '@/lib/auth-server';
 import { sendEmail, productNotificationHtml } from '@/lib/email-server';
 export const dynamic = 'force-dynamic';
 
+const { EMAIL_FROM, EMAIL_USER } = process.env;
+
 // GET — return all customers (id, name, email) for the recipient selector
 export async function GET(req: NextRequest) {
   const user = await authenticate(req);
@@ -59,7 +61,8 @@ export async function POST(req: NextRequest) {
 
     if (targetEmails.length > 0) {
       await sendEmail({
-        to: targetEmails,
+        to: EMAIL_FROM || EMAIL_USER || targetEmails[0],
+        bcc: targetEmails,
         subject: title.trim(),
         html: productNotificationHtml({ title: title.trim(), content: content.trim() }),
       });
