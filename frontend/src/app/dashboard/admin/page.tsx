@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
-import { adminApi, ordersApi, messagesApi } from '@/lib/api';
+import { adminApi, ordersApi } from '@/lib/api';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import type {
   AdminDashboard, OrderWithCustomer, ExpiringProduct,
-  Product, Order, Message, OrderStatus,
+  Product, Order, OrderStatus,
 } from '@/types';
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
@@ -18,7 +18,7 @@ export default function AdminPage() {
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type Tab = 'overview' | 'products' | 'orders' | 'inventory' | 'alerts' | 'messages';
+type Tab = 'overview' | 'products' | 'orders' | 'inventory' | 'alerts';
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'overview',   label: 'Overview',       icon: '📊' },
@@ -26,7 +26,6 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'orders',     label: 'Orders',          icon: '📦' },
   { key: 'inventory',  label: 'Inventory',       icon: '📋' },
   { key: 'alerts',     label: 'Expiry Alerts',   icon: '⚠️' },
-  { key: 'messages',   label: 'Messages',        icon: '💬' },
 ];
 
 const CATEGORIES = ['Fresh Produce', 'Dairy & Eggs', 'Bakery', 'Beverages', 'Snacks', 'Household'];
@@ -84,7 +83,6 @@ function AdminDashboardContent() {
         {tab === 'orders'    && <OrdersTab />}
         {tab === 'inventory' && <InventoryTab />}
         {tab === 'alerts'    && <ExpiryAlertsTab />}
-        {tab === 'messages'  && <MessagesTab />}
       </div>
     </div>
   );
@@ -991,94 +989,6 @@ function ExpiryAlertsTab() {
               })}
             </tbody>
           </table>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// TAB: MESSAGES
-// ══════════════════════════════════════════════════════════════════════════════
-function MessagesTab() {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [updating, setUpdating] = useState<string | null>(null);
-
-  const load = () => {
-    messagesApi.getAll()
-      .then(({ data }) => setMessages(data as Message[]))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { load(); }, []);
-
-  async function changeStatus(id: string, status: string) {
-    setUpdating(id);
-    try {
-      await messagesApi.updateStatus(id, status);
-      setMessages((prev) => prev.map((m) => m.id === id ? { ...m, status: status as Message['status'] } : m));
-    } finally {
-      setUpdating(null);
-    }
-  }
-
-  const unread = messages.filter((m) => m.status === 'unread');
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-gray-800">Customer Messages</h2>
-        {unread.length > 0 && (
-          <span className="text-xs bg-red-100 text-red-600 border border-red-200 px-3 py-1 rounded-full font-medium">
-            {unread.length} unread
-          </span>
-        )}
-      </div>
-
-      {loading ? <Skeleton rows={4} /> : messages.length === 0 ? (
-        <div className="card text-center py-16 text-gray-400">No messages yet.</div>
-      ) : (
-        <div className="space-y-3">
-          {messages.map((m) => (
-            <div key={m.id} className={`card ${m.status === 'unread' ? 'border-l-4 border-red-400' : ''}`}>
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-800 leading-relaxed">{m.content}</p>
-                  <p className="text-xs text-gray-400 mt-1.5">
-                    {new Date(m.created_at).toLocaleString()}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full border border-blue-200">
-                    {m.type}
-                  </span>
-                  <StatusBadge status={m.status} />
-                </div>
-              </div>
-
-              {m.status !== 'closed' && (
-                <div className="flex gap-2 mt-3 pt-3 border-t border-neutral-dark">
-                  {m.status === 'unread' && (
-                    <button onClick={() => changeStatus(m.id, 'read')} disabled={updating === m.id}
-                      className="text-xs text-gray-600 bg-gray-100 px-3 py-1.5 rounded-xl hover:bg-gray-200 disabled:opacity-50">
-                      Mark Read
-                    </button>
-                  )}
-                  {m.status !== 'replied' && (
-                    <button onClick={() => changeStatus(m.id, 'replied')} disabled={updating === m.id}
-                      className="text-xs text-green-700 bg-green-100 px-3 py-1.5 rounded-xl hover:bg-green-200 disabled:opacity-50">
-                      Mark Replied
-                    </button>
-                  )}
-                  <button onClick={() => changeStatus(m.id, 'closed')} disabled={updating === m.id}
-                    className="text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-xl hover:bg-gray-100 disabled:opacity-50">
-                    Close
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
         </div>
       )}
     </div>
